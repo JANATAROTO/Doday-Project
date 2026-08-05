@@ -1,0 +1,15 @@
+{% extends "events/base.html" %}
+
+{% block title %}Edit {{ event.title }} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_detail' event.pk %}">← Back to event</a>
+
+<h1>Edit event</h1>
+
+<form method="post" class="auth-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save changes</button>
+</form>
+{% endblock %}
