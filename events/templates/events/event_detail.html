@@ -1,0 +1,22 @@
+{% extends "events/base.html" %}
+
+{% block title %}{{ event.title }} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+
+<article class="event-detail">
+    <span class="event-category">{{ event.category|default:"General" }}</span>
+    <h1>{{ event.title }}</h1>
+    <p class="event-meta">📅 {{ event.date_time|date:"l, d F Y — H:i" }}</p>
+    <p class="event-meta">📍 {{ event.location }}</p>
+    <p class="event-price">
+        {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
+    </p>
+    <p class="event-description">{{ event.description }}</p>
+
+    {% if user.is_authenticated and user.id == event.organizer_id %}
+    <a class="edit-link" href="{% url 'events:event_edit' event.pk %}">✏️ Edit event</a>
+    {% endif %}
+</article>
+{% endblock %}

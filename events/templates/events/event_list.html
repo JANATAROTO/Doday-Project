@@ -1,0 +1,25 @@
+{% extends "events/base.html" %}
+
+{% block title %}Events — Doday{% endblock %}
+
+{% block content %}
+<h1>Upcoming events</h1>
+
+{% if events %}
+<div class="event-grid">
+    {% for event in events %}
+    <a class="event-card" href="{% url 'events:event_detail' event.pk %}">
+        <span class="event-category">{{ event.category|default:"General" }}</span>
+        <h2>{{ event.title }}</h2>
+        <p class="event-meta">📅 {{ event.date_time|date:"D, d M Y — H:i" }}</p>
+        <p class="event-meta">📍 {{ event.location }}</p>
+        <p class="event-price">
+            {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
+        </p>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<p>No events available yet.</p>
+{% endif %}
+{% endblock %}
