@@ -21,6 +21,8 @@ class Event(models.Model):
         null=True,
         blank=True,
         help_text="Only the organizer who created the event can edit it (RF5).",
+        latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True),
+        longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     )
     title = models.CharField(max_length=150)
     description = models.TextField()
@@ -40,6 +42,22 @@ class Event(models.Model):
         blank=True,
         help_text="Leave empty if the event is free.",
     )
+
+
+class Accommodation(models.Model):
+    """Alojamiento del usuario, usado para calcular distancia/tiempo a eventos."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="accommodation"
+    )
+    address = models.CharField(max_length=255)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+
+
+    def __str__(self):
+        return f"{self.user.username} - {self.address}"
+    
 
     class Meta:
         ordering = ["date_time"]
