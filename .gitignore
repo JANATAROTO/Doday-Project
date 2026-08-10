@@ -6,3 +6,7 @@ venv/
 env/
 .venv/
 *.log
+EXPLICACION_CODIGO.txt
+claude.md
+README.md
+requirements.txt

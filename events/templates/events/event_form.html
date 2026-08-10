@@ -1,15 +1,19 @@
 {% extends "events/base.html" %}
 
-{% block title %}Edit {{ event.title }} — Doday{% endblock %}
+{% block title %}{% if event %}Edit {{ event.title }}{% else %}Create event{% endif %} — Doday{% endblock %}
 
 {% block content %}
+{% if event %}
 <a class="back-link" href="{% url 'events:event_detail' event.pk %}">← Back to event</a>
+{% else %}
+<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+{% endif %}
 
-<h1>Edit event</h1>
+<h1>{% if event %}Edit event{% else %}Create event{% endif %}</h1>
 
 <form method="post" class="auth-form">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Save changes</button>
+    <button type="submit">{% if event %}Save changes{% else %}Create event{% endif %}</button>
 </form>
 {% endblock %}

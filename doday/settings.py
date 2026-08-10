@@ -116,6 +116,10 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'events:event_list'
 LOGOUT_REDIRECT_URL = 'events:event_list'
 
+# TODO: fill in once the team has a Google Maps API key (RF1/RF3).
+# Without a key, transit distance/time estimates are skipped (see events/distance.py).
+GOOGLE_MAPS_API_KEY = ''
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/

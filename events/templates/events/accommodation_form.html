@@ -1,0 +1,16 @@
+{% extends "events/base.html" %}
+
+{% block title %}My accommodation — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+
+<h1>My accommodation</h1>
+<p class="event-meta">Set your home location to see estimated transit distance/time to events.</p>
+
+<form method="post" class="auth-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save</button>
+</form>
+{% endblock %}

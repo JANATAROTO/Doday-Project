@@ -1,4 +1,5 @@
 {% extends "events/base.html" %}
+{% load static %}
 
 {% block title %}{{ event.title }} — Doday{% endblock %}
 
@@ -15,8 +16,24 @@
     </p>
     <p class="event-description">{{ event.description }}</p>
 
+    {% if transit_estimate %}
+    <p class="event-meta">🚌 ~{{ transit_estimate.distance_km }} km · {{ transit_estimate.duration_minutes }} min from your accommodation</p>
+    {% elif user.is_authenticated and not accommodation %}
+    <p class="event-meta"><a href="{% url 'events:accommodation_edit' %}">Set your accommodation</a> to see transit time to this event.</p>
+    {% endif %}
+
     {% if user.is_authenticated and user.id == event.organizer_id %}
-    <a class="edit-link" href="{% url 'events:event_edit' event.pk %}">✏️ Edit event</a>
+    <div class="event-actions">
+        <a class="edit-link" href="{% url 'events:event_edit' event.pk %}">✏️ Edit event</a>
+        <a class="delete-link" href="{% url 'events:event_delete' event.pk %}">🗑️ Delete event</a>
+    </div>
     {% endif %}
 </article>
+
+<section class="map-section">
+    <h2>Location</h2>
+    <div class="map-placeholder">
+        <img src="{% static 'events/map-placeholder.png' %}" alt="Map placeholder — Google Maps integration pending">
+    </div>
+</section>
 {% endblock %}

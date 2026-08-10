@@ -3,7 +3,12 @@
 {% block title %}Events — Doday{% endblock %}
 
 {% block content %}
-<h1>Upcoming events</h1>
+<div class="list-header">
+    <h1>Upcoming events</h1>
+    {% if user.is_authenticated %}
+    <a class="edit-link" href="{% url 'events:event_create' %}">+ Create event</a>
+    {% endif %}
+</div>
 
 {% if events %}
 <div class="event-grid">

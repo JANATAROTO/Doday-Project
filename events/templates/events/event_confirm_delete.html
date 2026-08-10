@@ -1,0 +1,15 @@
+{% extends "events/base.html" %}
+
+{% block title %}Delete {{ event.title }} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_detail' event.pk %}">← Back to event</a>
+
+<h1>Delete event</h1>
+<p>Are you sure you want to delete <strong>{{ event.title }}</strong>? This cannot be undone.</p>
+
+<form method="post" class="auth-form">
+    {% csrf_token %}
+    <button type="submit" class="delete-button">Delete event</button>
+</form>
+{% endblock %}
