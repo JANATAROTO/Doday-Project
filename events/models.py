@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -24,7 +25,12 @@ class Event(models.Model):
     )
     title = models.CharField(max_length=150)
     description = models.TextField()
-    date_time = models.DateTimeField()
+    date_time = models.DateTimeField(help_text="Start date and time (required).")
+    end_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="End date and time, for multi-day events (fairs, festivals). Leave empty for single-day events.",
+    )
     location = models.CharField(
         max_length=255,
         help_text="Address or place name (exact map coordinates come with RF1).",
@@ -48,6 +54,10 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        if self.end_date and self.end_date < self.date_time:
+            raise ValidationError({"end_date": "End date must be on or after the start date."})
 
 
 class Accommodation(models.Model):

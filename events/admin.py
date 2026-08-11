@@ -11,7 +11,16 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ("title", "date_time", "location", "organizer", "category", "is_free", "price")
+    list_display = (
+        "title",
+        "date_time",
+        "end_date",
+        "location",
+        "organizer",
+        "category",
+        "is_free",
+        "price",
+    )
     list_filter = ("category", "is_free", "organizer")
     search_fields = ("title", "description", "location")
     date_hierarchy = "date_time"

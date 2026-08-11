@@ -1,10 +1,14 @@
+from datetime import datetime, time
+
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .distance import estimate_transit
-from .forms import AccommodationForm, EventForm, SignupForm
+from .forms import AccommodationForm, EventFilterForm, EventForm, SignupForm
 from .models import Event
 
 
@@ -23,7 +27,33 @@ def signup(request):
 
 def event_list(request):
     events = Event.objects.select_related("category").all()
-    return render(request, "events/event_list.html", {"events": events})
+
+    filter_form = EventFilterForm(request.GET or None)
+    if filter_form.is_valid():
+        date_from = filter_form.cleaned_data.get("date_from")
+        date_to = filter_form.cleaned_data.get("date_to")
+
+        # RF7: date-range filter. Events without an end_date are treated as
+        # single-day — they only need to start on/after date_from — while
+        # multi-day events (fairs, festivals) match if their stay overlaps
+        # the requested [date_from, date_to] range at all.
+        if date_from:
+            check_in = timezone.make_aware(datetime.combine(date_from, time.min))
+            events = events.filter(
+                Q(end_date__gte=check_in) | Q(end_date__isnull=True, date_time__gte=check_in)
+            )
+        if date_to:
+            check_out = timezone.make_aware(datetime.combine(date_to, time.max))
+            events = events.filter(date_time__lte=check_out)
+
+        # RF11: category filter — matches any of the user-selected categories.
+        categories = filter_form.cleaned_data.get("category")
+        if categories:
+            events = events.filter(category__in=categories)
+
+    return render(
+        request, "events/event_list.html", {"events": events, "filter_form": filter_form}
+    )
 
 
 def event_detail(request, pk):

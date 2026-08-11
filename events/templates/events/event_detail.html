@@ -9,7 +9,10 @@
 <article class="event-detail">
     <span class="event-category">{{ event.category|default:"General" }}</span>
     <h1>{{ event.title }}</h1>
-    <p class="event-meta">📅 {{ event.date_time|date:"l, d F Y — H:i" }}</p>
+    <p class="event-meta">
+        📅 {{ event.date_time|date:"l, d F Y — H:i" }}
+        {% if event.end_date %} → {{ event.end_date|date:"l, d F Y — H:i" }}{% endif %}
+    </p>
     <p class="event-meta">📍 {{ event.location }}</p>
     <p class="event-price">
         {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}

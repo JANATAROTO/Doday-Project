@@ -47,6 +47,17 @@ SAMPLE_EVENTS = [
         "price": 25000,
         "organizer": "maria",
     },
+    {
+        "title": "Fiesta del Libro y la Cultura",
+        "description": "Feria editorial de varios días con lanzamientos, talleres y conversatorios con autores.",
+        "days_ahead": 14,
+        "days_duration": 6,
+        "location": "Jardín Botánico, Medellín",
+        "category": "Cultura",
+        "is_free": True,
+        "price": None,
+        "organizer": "sebas",
+    },
 ]
 
 DEMO_ORGANIZERS = {
@@ -71,11 +82,14 @@ class Command(BaseCommand):
         for data in SAMPLE_EVENTS:
             category, _ = Category.objects.get_or_create(name=data["category"])
             organizer = User.objects.get(username=data["organizer"])
+            start = now + timedelta(days=data["days_ahead"])
+            days_duration = data.get("days_duration")
             event, created = Event.objects.update_or_create(
                 title=data["title"],
                 defaults={
                     "description": data["description"],
-                    "date_time": now + timedelta(days=data["days_ahead"]),
+                    "date_time": start,
+                    "end_date": start + timedelta(days=days_duration) if days_duration else None,
                     "location": data["location"],
                     "category": category,
                     "is_free": data["is_free"],

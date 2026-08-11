@@ -10,13 +10,22 @@
     {% endif %}
 </div>
 
+<form method="get" class="filter-form">
+    {{ filter_form.as_p }}
+    <button type="submit">Filter</button>
+    {% if filter_form.data %}<a href="{% url 'events:event_list' %}">Clear</a>{% endif %}
+</form>
+
 {% if events %}
 <div class="event-grid">
     {% for event in events %}
     <a class="event-card" href="{% url 'events:event_detail' event.pk %}">
         <span class="event-category">{{ event.category|default:"General" }}</span>
         <h2>{{ event.title }}</h2>
-        <p class="event-meta">📅 {{ event.date_time|date:"D, d M Y — H:i" }}</p>
+        <p class="event-meta">
+            📅 {{ event.date_time|date:"D, d M Y — H:i" }}
+            {% if event.end_date %} → {{ event.end_date|date:"D, d M Y — H:i" }}{% endif %}
+        </p>
         <p class="event-meta">📍 {{ event.location }}</p>
         <p class="event-price">
             {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
