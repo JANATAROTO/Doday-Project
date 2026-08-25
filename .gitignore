@@ -6,4 +6,3 @@ env/
 .venv/
 *.log
 README.md
-requirements.txt

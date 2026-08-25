@@ -30,6 +30,11 @@ def event_list(request):
 
     filter_form = EventFilterForm(request.GET or None)
     if filter_form.is_valid():
+        # RF19: keyword search over title and description.
+        keyword = filter_form.cleaned_data.get("q")
+        if keyword:
+            events = events.filter(Q(title__icontains=keyword) | Q(description__icontains=keyword))
+
         date_from = filter_form.cleaned_data.get("date_from")
         date_to = filter_form.cleaned_data.get("date_to")
 
@@ -59,6 +64,10 @@ def event_list(request):
 def event_detail(request, pk):
     event = get_object_or_404(Event.objects.select_related("category"), pk=pk)
 
+    # RF21: external ticketing link. Every event points to the same platform
+    # for now — no per-organizer ticketing integration yet.
+    ticket_url = "https://www.ticketmaster.co/"
+
     transit_estimate = None
     accommodation = getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
     if accommodation and event.latitude is not None and event.longitude is not None:
@@ -72,7 +81,12 @@ def event_detail(request, pk):
     return render(
         request,
         "events/event_detail.html",
-        {"event": event, "accommodation": accommodation, "transit_estimate": transit_estimate},
+        {
+            "event": event,
+            "accommodation": accommodation,
+            "transit_estimate": transit_estimate,
+            "ticket_url": ticket_url,
+        },
     )
 
 

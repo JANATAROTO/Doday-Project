@@ -17,6 +17,7 @@
     <p class="event-price">
         {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
     </p>
+    <a class="edit-link" href="{{ ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
     <p class="event-description">{{ event.description }}</p>
 
     {% if transit_estimate %}

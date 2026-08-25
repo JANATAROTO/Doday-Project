@@ -29,8 +29,14 @@ class EventForm(forms.ModelForm):
 
 class EventFilterForm(forms.Form):
     """RF7: filter events by a user-specified date range (check-in/check-out).
-    RF11: filter events by user-selected categories."""
+    RF11: filter events by user-selected categories.
+    RF19: filter events by keyword, matched against title/description."""
 
+    q = forms.CharField(
+        required=False,
+        label="Keyword",
+        widget=forms.TextInput(attrs={"placeholder": "Search events..."}),
+    )
     date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     category = forms.ModelMultipleChoiceField(
