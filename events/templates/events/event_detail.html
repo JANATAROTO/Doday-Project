@@ -17,7 +17,16 @@
     <p class="event-price">
         {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
     </p>
-    <a class="edit-link" href="{{ ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+    <div class="event-actions">
+        <a class="edit-link" href="{{ ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+        <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'events:event_detail' event.pk %}">
+            <button type="submit" class="favorite-button {% if is_favorited %}delete-link{% else %}edit-link{% endif %}">
+                {% if is_favorited %}★ Remove from favorites{% else %}☆ Save to favorites{% endif %}
+            </button>
+        </form>
+    </div>
     <p class="event-description">{{ event.description }}</p>
 
     {% if transit_estimate %}
@@ -26,7 +35,7 @@
     <p class="event-meta"><a href="{% url 'events:accommodation_edit' %}">Set your accommodation</a> to see transit time to this event.</p>
     {% endif %}
 
-    {% if user.is_authenticated and user.id == event.organizer_id %}
+    {% if user.is_staff and user.id == event.organizer_id %}
     <div class="event-actions">
         <a class="edit-link" href="{% url 'events:event_edit' event.pk %}">✏️ Edit event</a>
         <a class="delete-link" href="{% url 'events:event_delete' event.pk %}">🗑️ Delete event</a>

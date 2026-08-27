@@ -76,8 +76,12 @@ class Command(BaseCommand):
             user, created = User.objects.get_or_create(username=username)
             if created:
                 user.set_password(password)
-                user.save()
                 self.stdout.write(self.style.SUCCESS(f"organizer created: {username}"))
+            if not user.is_staff:
+                # Only admin (is_staff) users can create/manage events.
+                user.is_staff = True
+                self.stdout.write(self.style.SUCCESS(f"promoted to admin: {username}"))
+            user.save()
 
         for data in SAMPLE_EVENTS:
             category, _ = Category.objects.get_or_create(name=data["category"])

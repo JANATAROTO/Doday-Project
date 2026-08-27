@@ -12,6 +12,7 @@
         <div class="header-row">
             <a class="brand" href="{% url 'events:event_list' %}">Doday</a>
             <div class="auth-status">
+                <a href="{% url 'events:favorites_list' %}">☆ Favorites{% if favorite_count %} ({{ favorite_count }}){% endif %}</a>
                 {% if user.is_authenticated %}
                     <span>Hi, {{ user.username }}</span>
                     <form method="post" action="{% url 'logout' %}" class="logout-form">

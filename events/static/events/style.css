@@ -187,6 +187,22 @@ h1 {
     cursor: pointer;
 }
 
+.favorite-button {
+    border: none;
+    cursor: pointer;
+    font: inherit;
+}
+
+.event-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.favorite-form {
+    margin-top: 0.75rem;
+}
+
 .list-header {
     display: flex;
     align-items: center;

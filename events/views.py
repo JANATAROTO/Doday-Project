@@ -6,10 +6,18 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 from .distance import estimate_transit
 from .forms import AccommodationForm, EventFilterForm, EventForm, SignupForm
 from .models import Event
+
+
+def _get_favorite_ids(request):
+    """RF16: favorites are stored in the session so both guests and
+    authenticated users can bookmark events without a dedicated model."""
+    return request.session.get("favorite_ids", [])
 
 
 def signup(request):
@@ -86,12 +94,41 @@ def event_detail(request, pk):
             "accommodation": accommodation,
             "transit_estimate": transit_estimate,
             "ticket_url": ticket_url,
+            "is_favorited": event.pk in _get_favorite_ids(request),
         },
     )
 
 
+@require_POST
+def favorite_toggle(request, pk):
+    """RF16: bookmark/unbookmark an event into the session's favorites list."""
+    event = get_object_or_404(Event, pk=pk)
+    favorite_ids = _get_favorite_ids(request)
+
+    if event.pk in favorite_ids:
+        favorite_ids.remove(event.pk)
+    else:
+        favorite_ids.append(event.pk)
+    request.session["favorite_ids"] = favorite_ids
+
+    next_url = request.POST.get("next")
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect("events:event_detail", pk=event.pk)
+
+
+def favorites_list(request):
+    """RF17: dedicated panel listing the session's saved favorite events."""
+    favorite_ids = _get_favorite_ids(request)
+    events = Event.objects.select_related("category").filter(pk__in=favorite_ids)
+    return render(request, "events/favorites_list.html", {"events": events})
+
+
 @login_required
 def event_create(request):
+    if not request.user.is_staff:
+        raise PermissionDenied("Only admin users can create events.")
+
     if request.method == "POST":
         form = EventForm(request.POST)
         if form.is_valid():
@@ -108,8 +145,8 @@ def event_create(request):
 @login_required
 def event_edit(request, pk):
     event = get_object_or_404(Event, pk=pk)
-    if event.organizer_id != request.user.id:
-        raise PermissionDenied("You can only edit events you organize.")
+    if not request.user.is_staff or event.organizer_id != request.user.id:
+        raise PermissionDenied("Only the admin user who organizes this event can edit it.")
 
     if request.method == "POST":
         form = EventForm(request.POST, instance=event)
@@ -125,8 +162,8 @@ def event_edit(request, pk):
 @login_required
 def event_delete(request, pk):
     event = get_object_or_404(Event, pk=pk)
-    if event.organizer_id != request.user.id:
-        raise PermissionDenied("You can only delete events you organize.")
+    if not request.user.is_staff or event.organizer_id != request.user.id:
+        raise PermissionDenied("Only the admin user who organizes this event can delete it.")
 
     if request.method == "POST":
         event.delete()

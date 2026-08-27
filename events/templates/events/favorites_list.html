@@ -1,0 +1,37 @@
+{% extends "events/base.html" %}
+
+{% block title %}My favorites — Doday{% endblock %}
+
+{% block content %}
+<div class="list-header">
+    <h1>My favorites</h1>
+</div>
+
+{% if events %}
+<div class="event-grid">
+    {% for event in events %}
+    <div class="event-card">
+        <a class="event-card-link" href="{% url 'events:event_detail' event.pk %}">
+            <span class="event-category">{{ event.category|default:"General" }}</span>
+            <h2>{{ event.title }}</h2>
+            <p class="event-meta">
+                📅 {{ event.date_time|date:"D, d M Y — H:i" }}
+                {% if event.end_date %} → {{ event.end_date|date:"D, d M Y — H:i" }}{% endif %}
+            </p>
+            <p class="event-meta">📍 {{ event.location }}</p>
+            <p class="event-price">
+                {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
+            </p>
+        </a>
+        <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'events:favorites_list' %}">
+            <button type="submit" class="favorite-button delete-link">★ Remove</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>You haven't saved any favorites yet. <a href="{% url 'events:event_list' %}">Browse events</a>.</p>
+{% endif %}
+{% endblock %}
