@@ -62,6 +62,7 @@ SAMPLE_EVENTS = [
 
 DEMO_ORGANIZERS = {
     "maria": "123456789",
+    "sebas": "123456789",
 }
 
 

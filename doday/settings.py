@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,10 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&pr^k+3@d7*q+df=_)!p1ct72a#)7t^3a29#gnz3pa*$_e3!=b'
+# SECURITY: in production, set the DJANGO_SECRET_KEY environment variable
+# instead of relying on this hardcoded development fallback.
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-&pr^k+3@d7*q+df=_)!p1ct72a#)7t^3a29#gnz3pa*$_e3!=b',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -38,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'events',
+    'search',
+    'navigation',
 ]
 
 MIDDLEWARE = [
@@ -117,12 +125,16 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'events:event_list'
 LOGOUT_REDIRECT_URL = 'events:event_list'
 
-# TODO: fill in once the team has a Google Maps API key (RF1/RF3).
-# Without a key, transit distance/time estimates are skipped (see events/distance.py).
-GOOGLE_MAPS_API_KEY = ''
+# Set the GOOGLE_MAPS_API_KEY environment variable once the team has a key
+# (REQ-01/REQ-03). Without it, transit distance/time estimates are skipped
+# (see navigation/services.py).
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# https://docs.djangoproject.com/en/6.1/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

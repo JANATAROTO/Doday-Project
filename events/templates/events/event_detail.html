@@ -32,7 +32,7 @@
     {% if transit_estimate %}
     <p class="event-meta">🚌 ~{{ transit_estimate.distance_km }} km · {{ transit_estimate.duration_minutes }} min from your accommodation</p>
     {% elif user.is_authenticated and not accommodation %}
-    <p class="event-meta"><a href="{% url 'events:accommodation_edit' %}">Set your accommodation</a> to see transit time to this event.</p>
+    <p class="event-meta"><a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to see transit time to this event.</p>
     {% endif %}
 
     {% if user.is_staff and user.id == event.organizer_id %}

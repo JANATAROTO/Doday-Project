@@ -59,16 +59,3 @@ class Event(models.Model):
         if self.end_date and self.end_date < self.date_time:
             raise ValidationError({"end_date": "End date must be on or after the start date."})
 
-
-class Accommodation(models.Model):
-    """User's home location, used to estimate transit distance/time to events (RF3)."""
-
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="accommodation"
-    )
-    address = models.CharField(max_length=255)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.address}"
