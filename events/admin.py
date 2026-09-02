@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Accommodation, Category, Event
+from .models import Category, Event
 
 
 @admin.register(Category)
@@ -24,9 +24,3 @@ class EventAdmin(admin.ModelAdmin):
     list_filter = ("category", "is_free", "organizer")
     search_fields = ("title", "description", "location")
     date_hierarchy = "date_time"
-
-
-@admin.register(Accommodation)
-class AccommodationAdmin(admin.ModelAdmin):
-    list_display = ("user", "address", "latitude", "longitude")
-    search_fields = ("user__username", "address")

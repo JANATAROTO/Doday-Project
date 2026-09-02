@@ -1,3 +1,5 @@
+"""Navigation component — REQ-03: estimate transit distance/time between the
+user's accommodation and an event, via the Google Distance Matrix API."""
 import requests
 from django.conf import settings
 
