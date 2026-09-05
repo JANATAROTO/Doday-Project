@@ -129,6 +129,7 @@ LOGOUT_REDIRECT_URL = 'events:event_list'
 # (REQ-01/REQ-03). Without it, transit distance/time estimates are skipped
 # (see navigation/services.py).
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
 
 
 # Static files (CSS, JavaScript, Images)

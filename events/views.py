@@ -52,17 +52,22 @@ def event_detail(request, pk):
     # platform for now — no per-organizer ticketing integration yet.
     ticket_url = "https://www.ticketmaster.co/"
 
-    # REQ-03: transit estimate from the Navigation component. `accommodation`
-    # comes from the Navigation-owned model via its reverse relation on User.
+    # REQ-15: External navigation link to Google Maps
+    google_maps_url = event.google_maps_url
+
+    # REQ-03: transit estimate via ORS. Only calculate if authenticated & accommodation exists.
     transit_estimate = None
     accommodation = getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
     if accommodation and event.latitude is not None and event.longitude is not None:
-        result = estimate_transit(
-            accommodation.latitude, accommodation.longitude, event.latitude, event.longitude
-        )
-        if result:
-            distance_km, duration_minutes = result
-            transit_estimate = {"distance_km": distance_km, "duration_minutes": duration_minutes}
+        try:
+            result = estimate_transit(
+                accommodation.latitude, accommodation.longitude, event.latitude, event.longitude
+            )
+            if result:
+                distance_km, duration_minutes = result
+                transit_estimate = {"distance_km": distance_km, "duration_minutes": duration_minutes}
+        except Exception:
+            transit_estimate = None
 
     return render(
         request,
@@ -71,6 +76,9 @@ def event_detail(request, pk):
             "event": event,
             "accommodation": accommodation,
             "transit_estimate": transit_estimate,
+            "distance_km": transit_estimate["distance_km"] if transit_estimate else None,
+            "duration_minutes": transit_estimate["duration_minutes"] if transit_estimate else None,
+            "google_maps_url": google_maps_url,
             "ticket_url": ticket_url,
             "is_favorited": event.pk in _get_favorite_ids(request),
         },

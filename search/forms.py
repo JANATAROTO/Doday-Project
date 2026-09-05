@@ -26,7 +26,7 @@ class EventFilterForm(forms.Form):
         required=False,
         widget=forms.CheckboxSelectMultiple,
     )
-    free_only = forms.BooleanField(required=False, label="Free events only")
+    free_only = forms.BooleanField(required=False, label="Solo gratis")
 
     def clean(self):
         cleaned_data = super().clean()

@@ -59,3 +59,11 @@ class Event(models.Model):
         if self.end_date and self.end_date < self.date_time:
             raise ValidationError({"end_date": "End date must be on or after the start date."})
 
+    @property
+    def google_maps_url(self):
+        if self.latitude is not None and self.longitude is not None:
+            lat_str = str(self.latitude).replace(",", ".")
+            lng_str = str(self.longitude).replace(",", ".")
+            return f"https://www.google.com/maps/search/?api=1&query={lat_str},{lng_str}"
+        return None
+
