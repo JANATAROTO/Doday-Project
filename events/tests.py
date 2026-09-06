@@ -31,6 +31,58 @@ class EventModelTests(TestCase):
         with self.assertRaises(Exception):
             event.full_clean()
 
+    def test_google_maps_url_formatted_with_dot_decimal(self):
+        event = Event(
+            title="Test Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Plaza",
+            latitude=6.244,
+            longitude=-75.581,
+        )
+        self.assertEqual(
+            event.google_maps_url,
+            "https://www.google.com/maps/search/?api=1&query=6.244,-75.581",
+        )
+
+    def test_google_maps_url_returns_none_when_coords_missing(self):
+        event = Event(
+            title="Test Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Plaza",
+            latitude=6.244,
+            longitude=None,
+        )
+        self.assertIsNone(event.google_maps_url)
+
+
+class EventDetailViewTests(TestCase):
+    def test_renders_google_maps_link_when_coords_exist(self):
+        event = Event.objects.create(
+            title="Maps Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Somewhere",
+            latitude=6.244,
+            longitude=-75.581,
+        )
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertContains(response, "Abrir en Google Maps")
+        self.assertContains(response, "https://www.google.com/maps/search/?api=1&amp;query=6.244000,-75.581000")
+        self.assertContains(response, 'target="_blank"')
+        self.assertContains(response, 'rel="noopener noreferrer"')
+
+    def test_omits_google_maps_link_when_coords_missing(self):
+        event = Event.objects.create(
+            title="No Coords Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Somewhere",
+        )
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertNotContains(response, "Abrir en Google Maps")
+
 
 class EventListViewTests(TestCase):
     def test_event_list_returns_200(self):

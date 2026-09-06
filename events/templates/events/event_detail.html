@@ -19,6 +19,9 @@
     </p>
     <div class="event-actions">
         <a class="edit-link" href="{{ ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+        {% if google_maps_url %}
+        <a class="edit-link" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
+        {% endif %}
         <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'events:event_detail' event.pk %}">
