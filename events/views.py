@@ -14,8 +14,8 @@ from .models import Event
 
 
 def _get_favorite_ids(request):
-    """REQ-16: favorites are stored in the session so both guests and
-    authenticated users can bookmark events without a dedicated model."""
+    """REQ-16: favorites are stored in the session (no dedicated model) but
+    only for authenticated users — guests must log in to save favorites."""
     return request.session.get("favorite_ids", [])
 
 
@@ -85,6 +85,7 @@ def event_detail(request, pk):
     )
 
 
+@login_required
 @require_POST
 def favorite_toggle(request, pk):
     """REQ-16: bookmark/unbookmark an event into the session's favorites list."""
@@ -103,6 +104,7 @@ def favorite_toggle(request, pk):
     return redirect("events:event_detail", pk=event.pk)
 
 
+@login_required
 def favorites_list(request):
     """REQ-17: dedicated panel listing the session's saved favorite events."""
     favorite_ids = _get_favorite_ids(request)

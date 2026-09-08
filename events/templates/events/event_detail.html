@@ -22,6 +22,7 @@
         {% if google_maps_url %}
         <a class="edit-link" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
         {% endif %}
+        {% if user.is_authenticated %}
         <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'events:event_detail' event.pk %}">
@@ -29,6 +30,10 @@
                 {% if is_favorited %}★ Remove from favorites{% else %}☆ Save to favorites{% endif %}
             </button>
         </form>
+        {% else %}
+        <a class="edit-link" href="{% url 'login' %}?next={% url 'events:event_detail' event.pk %}">☆ Log in to save favorites</a>
+        {% endif %}
+        <button type="button" class="share-button" id="share-button">🔗 Share</button>
     </div>
     <p class="event-description">{{ event.description }}</p>
 
@@ -52,4 +57,18 @@
         <img src="{% static 'events/map-placeholder.png' %}" alt="Map placeholder — Google Maps integration pending">
     </div>
 </section>
+
+<script>
+    // REQ-18: share event link — copies the current page URL to the clipboard.
+    document.getElementById("share-button").addEventListener("click", function () {
+        const button = this;
+        const originalLabel = button.textContent;
+        navigator.clipboard.writeText(window.location.href).then(function () {
+            button.textContent = "✅ Link copied!";
+            setTimeout(function () {
+                button.textContent = originalLabel;
+            }, 1500);
+        });
+    });
+</script>
 {% endblock %}

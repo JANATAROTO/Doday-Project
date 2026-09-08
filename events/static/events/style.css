@@ -193,6 +193,19 @@ h1 {
     font: inherit;
 }
 
+.share-button {
+    display: inline-block;
+    margin-top: 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.35rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
 .event-card-link {
     display: block;
     text-decoration: none;
