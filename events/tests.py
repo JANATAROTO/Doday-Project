@@ -83,6 +83,27 @@ class EventDetailViewTests(TestCase):
         response = self.client.get(reverse("events:event_detail", args=[event.pk]))
         self.assertNotContains(response, "Abrir en Google Maps")
 
+    def test_renders_share_button(self):
+        event = Event.objects.create(
+            title="Shareable Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Somewhere",
+        )
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertContains(response, 'id="share-button"')
+
+    def test_anonymous_user_sees_login_prompt_instead_of_favorite_button(self):
+        event = Event.objects.create(
+            title="Favorite Prompt Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Somewhere",
+        )
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertContains(response, "Log in to save favorites")
+        self.assertNotContains(response, "Save to favorites")
+
 
 class EventListViewTests(TestCase):
     def test_event_list_returns_200(self):
@@ -91,7 +112,26 @@ class EventListViewTests(TestCase):
 
 
 class FavoriteToggleTests(TestCase):
-    def test_toggle_adds_and_removes_from_session(self):
+    def setUp(self):
+        self.user = User.objects.create_user(username="guest", password="pw12345")
+
+    def test_toggle_adds_and_removes_from_session_when_logged_in(self):
+        event = Event.objects.create(
+            title="Toggle Event",
+            description="desc",
+            date_time=timezone.now(),
+            location="Somewhere",
+        )
+        url = reverse("events:favorite_toggle", args=[event.pk])
+        self.client.login(username="guest", password="pw12345")
+
+        self.client.post(url)
+        self.assertIn(event.pk, self.client.session.get("favorite_ids", []))
+
+        self.client.post(url)
+        self.assertNotIn(event.pk, self.client.session.get("favorite_ids", []))
+
+    def test_anonymous_user_is_redirected_to_login(self):
         event = Event.objects.create(
             title="Toggle Event",
             description="desc",
@@ -100,11 +140,17 @@ class FavoriteToggleTests(TestCase):
         )
         url = reverse("events:favorite_toggle", args=[event.pk])
 
-        self.client.post(url)
-        self.assertIn(event.pk, self.client.session.get("favorite_ids", []))
+        response = self.client.post(url)
 
-        self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
         self.assertNotIn(event.pk, self.client.session.get("favorite_ids", []))
+
+    def test_anonymous_user_cannot_view_favorites_list(self):
+        response = self.client.get(reverse("events:favorites_list"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
 
 
 class EventPermissionsTests(TestCase):
