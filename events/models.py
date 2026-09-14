@@ -48,6 +48,10 @@ class Event(models.Model):
         blank=True,
         help_text="Leave empty if the event is free.",
     )
+    ticket_url = models.URLField(
+        blank=True,
+        help_text="Where attendees can buy tickets for this event (RF21). Leave empty if there's no ticketing link.",
+    )
 
     class Meta:
         ordering = ["date_time"]

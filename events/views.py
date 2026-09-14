@@ -48,10 +48,6 @@ def event_list(request):
 def event_detail(request, pk):
     event = get_object_or_404(Event.objects.select_related("category"), pk=pk)
 
-    # REQ-21: external ticketing link. Every event points to the same
-    # platform for now — no per-organizer ticketing integration yet.
-    ticket_url = "https://www.ticketmaster.co/"
-
     # REQ-15: External navigation link to Google Maps
     google_maps_url = event.google_maps_url
 
@@ -79,7 +75,6 @@ def event_detail(request, pk):
             "distance_km": transit_estimate["distance_km"] if transit_estimate else None,
             "duration_minutes": transit_estimate["duration_minutes"] if transit_estimate else None,
             "google_maps_url": google_maps_url,
-            "ticket_url": ticket_url,
             "is_favorited": event.pk in _get_favorite_ids(request),
         },
     )

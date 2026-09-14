@@ -19,6 +19,7 @@ class EventForm(forms.ModelForm):
             "category",
             "is_free",
             "price",
+            "ticket_url",
         ]
         widgets = {
             "date_time": forms.DateTimeInput(attrs={"type": "datetime-local"}),

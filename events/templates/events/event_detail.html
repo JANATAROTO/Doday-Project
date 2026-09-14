@@ -18,7 +18,9 @@
         {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
     </p>
     <div class="event-actions">
-        <a class="edit-link" href="{{ ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+        {% if event.ticket_url %}
+        <a class="edit-link" href="{{ event.ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+        {% endif %}
         {% if google_maps_url %}
         <a class="edit-link" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
         {% endif %}
