@@ -49,7 +49,5 @@ Correr las pruebas de todas las apps:
 - `python manage.py test`
 
 Super usuarios:
-|usuario|contraseña|
-|||
-| Sebas | 123456789 |
-| maria | 123456789 |
+usuario: Sebas. contraseña: 123456789.
+usuario: maria. contraseña: 123456789.
