@@ -1,16 +1,18 @@
 ## Running the server locally
 
 1. clonar el repo o descargar:
-   git clone https://github.com/JANATAROTO/Doday-Project.git
-   cd Doday-Project
-   
+   - `git clone https://github.com/JANATAROTO/Doday-Project.git`
+   - `cd Doday-Project`
+
 2. crear el ambiente virtual:
-   python -m venv venv
-   source venv/bin/activate o venv\Scripts\activate
-   
+   - `python -m venv venv`
+   - activar el ambiente virtual:
+     - Windows: `venv\Scripts\activate`
+     - Linux/macOS: `source venv/bin/activate`
+
 3. instalar las dependencias:
-   pip install -r requirements.txt
-   
+   - `pip install -r requirements.txt`
+
 4. (opcional) variables de entorno — si no se definen, el proyecto corre igual
    con valores de desarrollo por defecto:
    - `DJANGO_SECRET_KEY`: clave secreta para producción.
@@ -19,14 +21,14 @@
      (REQ-01/REQ-03, Navigation). Sin ella, ese dato simplemente no se muestra.
 
 5. migraciones de la base de datos:
-   python manage.py migrate
-   
+   - `python manage.py migrate`
+
 6. semilla para eventos en la base de datos:
-   python manage.py seed_events
-   
+   - `python manage.py seed_events`
+
 7. lanzar el servidor:
-   python manage.py runserver
-   
+   - `python manage.py runserver`
+
 8. abrir http://127.0.0.1:8000/ o el que salga.
 
 ## Estructura del proyecto
@@ -44,4 +46,4 @@ componentes del Component Diagram (ver la Wiki, Entregable 2):
 
 Correr las pruebas de todas las apps:
 
-   python manage.py test
+- `python manage.py test`
