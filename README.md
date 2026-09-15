@@ -47,3 +47,9 @@ componentes del Component Diagram (ver la Wiki, Entregable 2):
 Correr las pruebas de todas las apps:
 
 - `python manage.py test`
+
+Super usuarios:
+|usuario|contraseña|
+|||
+| Sebas | 123456789 |
+| maria | 123456789 |
