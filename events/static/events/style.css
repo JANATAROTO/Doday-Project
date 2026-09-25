@@ -349,3 +349,22 @@ h1 {
     padding: 2rem 0;
     font-size: 0.85rem;
 }
+
+/* REQ-09/REQ-10: interactive event map */
+.event-map {
+    width: 100%;
+    height: 520px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    margin-top: 0.75rem;
+}
+
+.map-preview {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.map-preview a {
+    color: var(--primary);
+    font-weight: 600;
+}
