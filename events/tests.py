@@ -57,6 +57,94 @@ class EventModelTests(TestCase):
         self.assertIsNone(event.google_maps_url)
 
 
+class EventBadgeTests(TestCase):
+    """REQ-23: real-time status badges."""
+
+    def _event(self, **kwargs):
+        defaults = {
+            "title": "Badge Event",
+            "description": "desc",
+            "date_time": timezone.now(),
+            "location": "Plaza",
+            "is_free": False,
+        }
+        return Event(**{**defaults, **kwargs})
+
+    def _labels(self, event):
+        return [badge["label"] for badge in event.badges]
+
+    def test_event_starting_today_is_badged_hoy(self):
+        event = self._event(date_time=timezone.now())
+        self.assertIn("Hoy", self._labels(event))
+
+    def test_event_within_next_week_is_badged_esta_semana(self):
+        event = self._event(date_time=timezone.now() + timedelta(days=3))
+        self.assertEqual(self._labels(event), ["Esta semana"])
+
+    def test_event_further_away_gets_no_date_badge(self):
+        event = self._event(date_time=timezone.now() + timedelta(days=30))
+        self.assertEqual(self._labels(event), [])
+
+    def test_finished_event_gets_no_date_badge(self):
+        event = self._event(
+            date_time=timezone.now() - timedelta(days=10),
+            end_date=timezone.now() - timedelta(days=9),
+        )
+        self.assertEqual(self._labels(event), [])
+
+    def test_ongoing_multi_day_event_is_badged_hoy(self):
+        """A festival that started before today but runs past it is happening now."""
+        event = self._event(
+            date_time=timezone.now() - timedelta(days=2),
+            end_date=timezone.now() + timedelta(days=2),
+        )
+        self.assertEqual(self._labels(event), ["Hoy"])
+
+    def test_hoy_takes_precedence_over_esta_semana(self):
+        event = self._event(date_time=timezone.now())
+        self.assertNotIn("Esta semana", self._labels(event))
+
+    def test_free_event_is_badged_gratis(self):
+        event = self._event(date_time=timezone.now() + timedelta(days=30), is_free=True)
+        self.assertEqual(self._labels(event), ["Gratis"])
+
+    def test_paid_event_is_not_badged_gratis(self):
+        event = self._event(date_time=timezone.now() + timedelta(days=30), is_free=False)
+        self.assertNotIn("Gratis", self._labels(event))
+
+    def test_free_badge_combines_with_date_badge(self):
+        event = self._event(date_time=timezone.now(), is_free=True)
+        self.assertEqual(self._labels(event), ["Hoy", "Gratis"])
+
+    def test_badges_carry_a_css_slug(self):
+        event = self._event(date_time=timezone.now(), is_free=True)
+        self.assertEqual([badge["slug"] for badge in event.badges], ["today", "free"])
+
+    def test_event_list_renders_badges(self):
+        Event.objects.create(
+            title="Evento de Hoy",
+            description="desc",
+            date_time=timezone.now(),
+            location="Plaza",
+            is_free=True,
+        )
+        response = self.client.get(reverse("events:event_list"))
+        self.assertContains(response, "event-badge-today")
+        self.assertContains(response, "event-badge-free")
+
+    def test_event_detail_renders_badges(self):
+        event = Event.objects.create(
+            title="Evento de Hoy",
+            description="desc",
+            date_time=timezone.now(),
+            location="Plaza",
+            is_free=True,
+        )
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertContains(response, "event-badge-today")
+        self.assertContains(response, "event-badge-free")
+
+
 class EventDetailViewTests(TestCase):
     def test_renders_google_maps_link_when_coords_exist(self):
         event = Event.objects.create(

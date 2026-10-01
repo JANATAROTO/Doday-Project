@@ -117,6 +117,44 @@ h1 {
     border-radius: 999px;
 }
 
+/* REQ-23: real-time status badges. They share the pill row with the category,
+   so "Hoy" is the loud one and the calmer tints stay subordinate to it. */
+.event-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    /* Collapses with the card title's own top margin, so the pill row keeps
+       the same spacing in cards (h2) and on the detail page (h1). */
+    margin-bottom: 0.5rem;
+}
+
+.event-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.event-badge-today {
+    background: #b45309;
+    color: #ffffff;
+}
+
+.event-badge-this-week {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.event-badge-free {
+    background: #dcfce7;
+    color: #15803d;
+}
+
 .event-meta {
     margin: 0.25rem 0;
     color: var(--muted);

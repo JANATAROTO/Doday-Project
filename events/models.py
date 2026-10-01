@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Category(models.Model):
@@ -62,6 +65,34 @@ class Event(models.Model):
     def clean(self):
         if self.end_date and self.end_date < self.date_time:
             raise ValidationError({"end_date": "End date must be on or after the start date."})
+
+    @property
+    def badges(self):
+        """REQ-23: real-time status badges rendered on every event card.
+
+        "Hoy" takes precedence over "Esta semana" so a card never shows two
+        overlapping date badges, and an event that already finished gets no
+        date badge at all. "Gratis" is independent and can accompany either.
+
+        Pure Python over fields that are already loaded — no extra queries,
+        so it is safe to call once per card in a list.
+        """
+        badges = []
+        today = timezone.localdate()
+        first_day = timezone.localtime(self.date_time).date()
+        # Multi-day events (fairs, festivals) run until end_date; single-day
+        # ones start and finish on the same date.
+        last_day = timezone.localtime(self.end_date).date() if self.end_date else first_day
+
+        if first_day <= today <= last_day:
+            badges.append({"label": "Hoy", "slug": "today"})
+        elif today < first_day <= today + timedelta(days=7):
+            badges.append({"label": "Esta semana", "slug": "this-week"})
+
+        if self.is_free:
+            badges.append({"label": "Gratis", "slug": "free"})
+
+        return badges
 
     @property
     def google_maps_url(self):

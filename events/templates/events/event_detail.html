@@ -7,7 +7,12 @@
 <a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
 
 <article class="event-detail">
-    <span class="event-category">{{ event.category|default:"General" }}</span>
+    <div class="event-badges">
+        <span class="event-category">{{ event.category|default:"General" }}</span>
+        {% for badge in event.badges %}
+        <span class="event-badge event-badge-{{ badge.slug }}">{{ badge.label }}</span>
+        {% endfor %}
+    </div>
     <h1>{{ event.title }}</h1>
     <p class="event-meta">
         📅 {{ event.date_time|date:"l, d F Y — H:i" }}

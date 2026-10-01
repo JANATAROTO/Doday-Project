@@ -12,7 +12,12 @@
     {% for event in events %}
     <div class="event-card">
         <a class="event-card-link" href="{% url 'events:event_detail' event.pk %}">
-            <span class="event-category">{{ event.category|default:"General" }}</span>
+            <div class="event-badges">
+                <span class="event-category">{{ event.category|default:"General" }}</span>
+                {% for badge in event.badges %}
+                <span class="event-badge event-badge-{{ badge.slug }}">{{ badge.label }}</span>
+                {% endfor %}
+            </div>
             <h2>{{ event.title }}</h2>
             <p class="event-meta">
                 📅 {{ event.date_time|date:"D, d M Y — H:i" }}
