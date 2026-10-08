@@ -16,6 +16,19 @@
     {% if filter_form.data %}<a href="{% url 'events:event_list' %}">Clear</a>{% endif %}
 </form>
 
+{# REQ-08/REQ-14: both the radius and the proximity order need an origin to
+   measure from, so without an accommodation they are quietly ignored and this
+   explains why the two controls appear to do nothing. #}
+{% if not accommodation %}
+<p class="event-meta">
+    {% if user.is_authenticated %}
+    <a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to filter and sort events by distance.
+    {% else %}
+    <a href="{% url 'login' %}?next={% url 'events:event_list' %}">Log in</a> and set your accommodation to filter and sort events by distance.
+    {% endif %}
+</p>
+{% endif %}
+
 {% if events %}
 <div class="event-grid">
     {% for event in events %}
@@ -32,6 +45,9 @@
             {% if event.end_date %} → {{ event.end_date|date:"D, d M Y — H:i" }}{% endif %}
         </p>
         <p class="event-meta">📍 {{ event.location }}</p>
+        {% if event.distance_km != None %}
+        <p class="event-meta">📏 {{ event.distance_km }} km from your accommodation</p>
+        {% endif %}
         <p class="event-price">
             {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
         </p>

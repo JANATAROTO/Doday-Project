@@ -37,11 +37,24 @@ def event_list(request):
     the Search component so this view only owns display concerns."""
     events = Event.objects.select_related("category").all()
 
+    # REQ-08: the radius is measured from the user's accommodation, so the
+    # filter is only available once they have saved one (REQ-01).
+    accommodation = (
+        getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
+    )
+    origin = (accommodation.latitude, accommodation.longitude) if accommodation else None
+
     filter_form = EventFilterForm(request.GET or None)
-    events = filter_events(events, filter_form)
+    events = filter_events(events, filter_form, origin=origin)
 
     return render(
-        request, "events/event_list.html", {"events": events, "filter_form": filter_form}
+        request,
+        "events/event_list.html",
+        {
+            "events": events,
+            "filter_form": filter_form,
+            "accommodation": accommodation,
+        },
     )
 
 

@@ -7,6 +7,9 @@
 
 <h1>My accommodation</h1>
 <p class="event-meta">Set your home location to see estimated transit distance/time to events.</p>
+{% if form.show_coordinate_fields %}
+<p class="event-meta">The address lookup is unavailable right now, so please enter the coordinates yourself.</p>
+{% endif %}
 
 <form method="post" class="auth-form">
     {% csrf_token %}

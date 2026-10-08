@@ -306,6 +306,43 @@ h1 {
     width: auto;
 }
 
+/* REQ-08: the radius input is a filter of its own, not a sub-option of the
+   free-admission checkbox it sits next to. */
+.filter-form input[type="number"] {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 1rem;
+    width: 8rem;
+}
+
+.filter-form .helptext {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: #6b7280;
+    max-width: 14rem;
+}
+
+/* REQ-14: the order selector, styled like the other filter inputs so it does
+   not read as a different kind of control. */
+.filter-form select {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 1rem;
+    background: white;
+}
+
+/* Keep the free-admission checkbox on one line with its own label, so it
+   cannot be mistaken for a sub-option of the filter beside it. */
+.filter-form p:has(> #id_free_only) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 .filter-form button {
     background: var(--primary);
     color: white;
