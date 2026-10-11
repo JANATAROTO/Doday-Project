@@ -16,9 +16,11 @@
     {% if filter_form.data %}<a href="{% url 'events:event_list' %}">Clear</a>{% endif %}
 </form>
 
-{# REQ-08/REQ-14: both the radius and the proximity order need an origin to
-   measure from, so without an accommodation they are quietly ignored and this
-   explains why the two controls appear to do nothing. #}
+{% comment %}
+REQ-08/REQ-14: both the radius and the proximity order need an origin to
+measure from, so without an accommodation they are quietly ignored and this
+explains why the two controls appear to do nothing.
+{% endcomment %}
 {% if not accommodation %}
 <p class="event-meta">
     {% if user.is_authenticated %}
