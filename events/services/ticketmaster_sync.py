@@ -9,12 +9,15 @@ Usage (e.g. from a management command or a scheduled task):
     created, updated = sync_ticketmaster_events()
 """
 import os
+import logging
+from datetime import datetime
 
 import requests
 from django.conf import settings
 
 from events.models import Category, Event
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Low-level: talk to the external API
@@ -46,7 +49,8 @@ def fetch_ticketmaster_events(city="Medellín", size=50):
         if response.status_code != 200:
             return []
         return response.json().get("_embedded", {}).get("events", [])
-    except Exception:
+    except (requests.RequestException, ValueError, TypeError):
+        logger.warning("Ticketmaster request failed for city=%s", city, exc_info=True)
         return []
 
 
@@ -83,6 +87,11 @@ def sync_ticketmaster_events(city="Medellín", size=50):
         # Ticketmaster may omit dateTime for day-only events; skip those.
         start_datetime = raw.get("dates", {}).get("start", {}).get("dateTime")
         if not start_datetime:
+            continue
+        try:
+            start_datetime = datetime.fromisoformat(start_datetime.replace("Z", "+00:00"))
+        except (AttributeError, TypeError, ValueError):
+            logger.warning("Skipping Ticketmaster event with invalid date: %s", raw.get("id"))
             continue
 
         # --- upsert -----------------------------------------------------------
