@@ -221,3 +221,18 @@ class EventMapFilterTests(TestCase):
             {"date_from": "2026-10-31", "date_to": "2026-10-01"},
         )
         self.assertEqual(response.status_code, 200)
+
+
+class EventMapTimezoneTests(TestCase):
+    def test_marker_date_uses_local_timezone(self):
+        # 11:00 UTC is 06:00 in America/Bogota (UTC-5), the project's TIME_ZONE.
+        Event.objects.create(
+            title="EDC",
+            description="desc",
+            date_time="2026-10-13T11:00:00Z",
+            location="Atanasio Girardot",
+            latitude=6.2565,
+            longitude=-75.5905,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertIn("13 Oct 2026 — 06:00", response.context["markers"][0]["date"])

@@ -3,6 +3,7 @@ from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from events.models import Event
 from search.forms import EventFilterForm
@@ -47,7 +48,7 @@ def event_map(request):
             "id": e.pk,
             "title": e.title,
             "category": e.category.name if e.category else "General",
-            "date": e.date_time.strftime("%d %b %Y — %H:%M"),
+            "date": timezone.localtime(e.date_time).strftime("%d %b %Y — %H:%M"),
             "price": "Free" if e.is_free else (f"${e.price}" if e.price is not None else "N/A"),
             "lat": float(e.latitude),
             "lng": float(e.longitude),
