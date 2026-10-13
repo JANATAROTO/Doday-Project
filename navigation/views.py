@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -37,12 +36,21 @@ def event_map(request):
     shows exactly the events the catalog would list for the same querystring.
     """
     filter_form = EventFilterForm(request.GET or None)
-    filtered = filter_events(Event.objects.select_related("category"), filter_form)
 
-    events = filtered.exclude(latitude__isnull=True).exclude(longitude__isnull=True)
-    events_without_coords = filtered.filter(
-        Q(latitude__isnull=True) | Q(longitude__isnull=True)
-    ).count()
+    # REQ-08/REQ-14: the radius and the proximity order are measured from the
+    # user's accommodation (REQ-01), exactly as in the event list.
+    accommodation = (
+        getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
+    )
+    origin = (accommodation.latitude, accommodation.longitude) if accommodation else None
+
+    # With an origin filter_events returns a list (distances are computed in
+    # Python); without one it returns a queryset. list() covers both.
+    filtered = list(
+        filter_events(Event.objects.select_related("category"), filter_form, origin=origin)
+    )
+    events = [e for e in filtered if e.latitude is not None and e.longitude is not None]
+    events_without_coords = len(filtered) - len(events)
     markers = [
         {
             "id": e.pk,
@@ -64,5 +72,6 @@ def event_map(request):
             "markers": markers,
             "events_without_coords": events_without_coords,
             "filter_form": filter_form,
+            "accommodation": accommodation,
         },
     )

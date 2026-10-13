@@ -15,6 +15,20 @@
     {% if filter_form.data %}<a href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
 </form>
 
+{% comment %}
+REQ-08/REQ-14: the radius and the proximity order need an origin, so without an
+accommodation they are quietly ignored; this explains why they do nothing.
+{% endcomment %}
+{% if not accommodation %}
+<p class="event-meta">
+    {% if user.is_authenticated %}
+    <a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to filter and sort events by distance.
+    {% else %}
+    <a href="{% url 'login' %}?next={% url 'navigation:event_map' %}">Log in</a> and set your accommodation to filter and sort events by distance.
+    {% endif %}
+</p>
+{% endif %}
+
 {% if google_maps_js_key %}
 <div id="map" class="event-map"></div>
 {% if not markers %}
