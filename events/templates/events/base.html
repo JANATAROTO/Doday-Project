@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Doday{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'events/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header class="site-header">
@@ -13,10 +14,12 @@
             <a class="brand" href="{% url 'events:event_list' %}">Doday</a>
             <div class="auth-status">
                 <a href="{% url 'events:favorites_list' %}">☆ Favorites{% if favorite_count %} ({{ favorite_count }}){% endif %}</a>
+                <a href="{% url 'navigation:event_map' %}">🗺️ Map</a>
                 {% if user.is_authenticated %}
                     {# REQ-01: the only way to review or change a saved accommodation. #}
                     <a href="{% url 'navigation:accommodation_edit' %}">📍 My accommodation</a>
                     <span>Hi, {{ user.username }}</span>
+                    <a href="{% url 'navigation:accommodation_edit' %}">My accommodation</a>
                     <form method="post" action="{% url 'logout' %}" class="logout-form">
                         {% csrf_token %}
                         <button type="submit" class="link-button">Log out</button>
@@ -35,5 +38,6 @@
     <footer class="site-footer">
         <p>Doday — academic project</p>
     </footer>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

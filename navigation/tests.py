@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from events.models import Category, Event
 from navigation.forms import AccommodationForm
 from navigation.models import Accommodation
 from navigation.services import estimate_transit, geocode_address, haversine_km
@@ -177,13 +178,15 @@ class AccommodationFormTests(TestCase):
         form = AccommodationForm(
             data={
                 "address": "Somewhere with no street number",
-                "latitude": "6.100000",
-                "longitude": "-75.400000",
+                # REQ-26: manual coordinates still have to fall inside
+                # ACCOMMODATION_ALLOWED_BOUNDS, so these sit well within Medellin.
+                "latitude": "6.200000",
+                "longitude": "-75.600000",
             }
         )
 
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["latitude"], Decimal("6.100000"))
+        self.assertEqual(form.cleaned_data["latitude"], Decimal("6.200000"))
         mock_geocode.assert_not_called()
 
     @patch("navigation.forms.geocode_address")
@@ -317,3 +320,178 @@ class HaversineTests(TestCase):
         near = haversine_km(*self.LLERAS, *self.TEATRO_METROPOLITANO)
         far = haversine_km(*self.LLERAS, *self.JARDIN_BOTANICO)
         self.assertLess(near, far)
+
+
+from django.test import override_settings as _override_settings  # noqa: E402
+
+
+class EventMapViewTests(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(name="Music")
+        self.event_with_coords = Event.objects.create(
+            title="Concierto en el parque",
+            description="desc",
+            date_time="2026-10-01T20:00:00Z",
+            location="Parque Lleras",
+            latitude=6.244,
+            longitude=-75.581,
+            category=self.category,
+            is_free=True,
+        )
+        self.event_without_coords = Event.objects.create(
+            title="Feria sin coordenadas",
+            description="desc",
+            date_time="2026-10-02T10:00:00Z",
+            location="Por definir",
+            category=self.category,
+            is_free=False,
+            price=20000,
+        )
+
+    def test_map_page_loads(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(response.status_code, 200)
+
+    @_override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_shows_setup_message_without_api_key(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertContains(response, "GOOGLE_MAPS_API_KEY")
+        self.assertNotContains(response, 'id="map"')
+
+    @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
+    def test_renders_map_and_markers_with_api_key(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertContains(response, 'id="map"')
+        self.assertContains(response, "fake-js-key")
+
+        markers = response.context["markers"]
+        self.assertEqual(len(markers), 1)
+        self.assertEqual(markers[0]["title"], "Concierto en el parque")
+        self.assertEqual(markers[0]["lat"], 6.244)
+
+    def test_counts_events_without_coordinates(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(response.context["events_without_coords"], 1)
+
+    def test_counts_event_missing_only_one_coordinate(self):
+        # Latitude without longitude can't be plotted either.
+        Event.objects.create(
+            title="Solo latitud",
+            description="desc",
+            date_time="2026-10-03T10:00:00Z",
+            location="Parcial",
+            latitude=6.25,
+            category=self.category,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(response.context["events_without_coords"], 2)
+
+    @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
+    def test_marker_data_is_script_safe(self):
+        Event.objects.create(
+            title="</script><script>alert(1)</script>",
+            description="desc",
+            date_time="2026-10-04T10:00:00Z",
+            location="XSS",
+            latitude=6.3,
+            longitude=-75.6,
+            category=self.category,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        html = response.content.decode()
+        # The raw closing tag must never appear inside the page's JSON blob.
+        self.assertNotIn("</script><script>alert(1)", html)
+        self.assertIn("\\u003C/script\\u003E", html)
+
+
+class EventMapFilterTests(TestCase):
+    """REQ-09: the map must plot only the events matching the search filters."""
+
+    def setUp(self):
+        self.music = Category.objects.create(name="Music")
+        self.food = Category.objects.create(name="Food")
+        self.concert = Event.objects.create(
+            title="Concierto en el parque",
+            description="rock",
+            date_time="2026-10-01T20:00:00Z",
+            location="Parque Lleras",
+            latitude=6.244,
+            longitude=-75.581,
+            category=self.music,
+            is_free=True,
+        )
+        self.fair = Event.objects.create(
+            title="Feria gastronomica",
+            description="comida",
+            date_time="2026-10-20T10:00:00Z",
+            location="Plaza Mayor",
+            latitude=6.25,
+            longitude=-75.57,
+            category=self.food,
+            is_free=False,
+            price=15000,
+        )
+        self.no_coords = Event.objects.create(
+            title="Concierto sin coordenadas",
+            description="rock",
+            date_time="2026-10-02T10:00:00Z",
+            location="Por definir",
+            category=self.music,
+            is_free=True,
+        )
+
+    def _titles(self, response):
+        return sorted(m["title"] for m in response.context["markers"])
+
+    def test_no_filters_shows_all_events_with_coordinates(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(len(response.context["markers"]), 2)
+
+    def test_keyword_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"q": "gastronomica"})
+        self.assertEqual(self._titles(response), ["Feria gastronomica"])
+
+    def test_category_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"category": [self.music.pk]})
+        self.assertEqual(self._titles(response), ["Concierto en el parque"])
+
+    def test_free_only_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"free_only": "on"})
+        self.assertEqual(self._titles(response), ["Concierto en el parque"])
+
+    def test_date_range_filter(self):
+        response = self.client.get(
+            reverse("navigation:event_map"),
+            {"date_from": "2026-10-15", "date_to": "2026-10-31"},
+        )
+        self.assertEqual(self._titles(response), ["Feria gastronomica"])
+
+    def test_without_coords_count_respects_filters(self):
+        response = self.client.get(reverse("navigation:event_map"), {"q": "sin coordenadas"})
+        self.assertEqual(response.context["events_without_coords"], 1)
+        self.assertEqual(response.context["markers"], [])
+        # Filter that excludes the coordinate-less event -> nothing to warn about.
+        response = self.client.get(reverse("navigation:event_map"), {"q": "gastronomica"})
+        self.assertEqual(response.context["events_without_coords"], 0)
+
+    def test_invalid_form_does_not_crash(self):
+        response = self.client.get(
+            reverse("navigation:event_map"),
+            {"date_from": "2026-10-31", "date_to": "2026-10-01"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+
+class EventMapTimezoneTests(TestCase):
+    def test_marker_date_uses_local_timezone(self):
+        # 11:00 UTC is 06:00 in America/Bogota (UTC-5), the project's TIME_ZONE.
+        Event.objects.create(
+            title="EDC",
+            description="desc",
+            date_time="2026-10-13T11:00:00Z",
+            location="Atanasio Girardot",
+            latitude=6.2565,
+            longitude=-75.5905,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertIn("13 Oct 2026 — 06:00", response.context["markers"][0]["date"])
