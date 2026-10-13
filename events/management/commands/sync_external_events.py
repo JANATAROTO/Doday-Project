@@ -21,12 +21,18 @@ class Command(BaseCommand):
             default="Medellín",
             help="City to query the external API for (default: Medellín).",
         )
+        parser.add_argument(
+            "--size",
+            type=int,
+            default=50,
+            help="Maximum number of events to fetch per run (default: 50).",
+        )
 
     def handle(self, *args, **options):
         city = options["city"]
         self.stdout.write(f"Syncing Ticketmaster events for city={city}...")
 
-        created, updated = sync_ticketmaster_events(city=city)
+        created, updated = sync_ticketmaster_events(city=city, size=options["size"])
 
         self.stdout.write(
             self.style.SUCCESS(

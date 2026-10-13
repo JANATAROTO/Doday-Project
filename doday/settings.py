@@ -17,6 +17,15 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _decimal_bounds(value, default):
+    """Parse a comma-separated south, north, west, east bounding box."""
+    try:
+        bounds = tuple(float(part.strip()) for part in value.split(","))
+    except (AttributeError, ValueError):
+        return default
+    return bounds if len(bounds) == 4 else default
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -140,6 +149,14 @@ ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
 # Set the TICKETMASTER_API_KEY environment variable to enable event sync.
 # Without it, sync_ticketmaster_events() returns [] silently (same as ORS_API_KEY).
 TICKETMASTER_API_KEY = os.environ.get('TICKETMASTER_API_KEY', '')
+
+# REQ-26: configurable city boundary for accommodation coordinates.
+# Medellín's approximate urban bounding box is used for local development.
+# Format: south,north,west,east (for example: 6.10,6.40,-75.70,-75.45).
+ACCOMMODATION_ALLOWED_BOUNDS = _decimal_bounds(
+    os.environ.get("ACCOMMODATION_ALLOWED_BOUNDS", ""),
+    (6.10, 6.40, -75.70, -75.45),
+)
 
 
 # Static files (CSS, JavaScript, Images)
