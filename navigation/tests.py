@@ -495,3 +495,58 @@ class EventMapTimezoneTests(TestCase):
         )
         response = self.client.get(reverse("navigation:event_map"))
         self.assertIn("13 Oct 2026 — 06:00", response.context["markers"][0]["date"])
+
+
+class EventMapDistanceTests(TestCase):
+    """REQ-08/REQ-14: the map honors the radius and proximity order measured
+    from the logged-in user's accommodation, like the event list does."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="traveler", password="pass12345")
+        Accommodation.objects.create(
+            user=self.user, address="El Poblado", latitude=6.2087, longitude=-75.5678
+        )
+        self.near = Event.objects.create(
+            title="Cerca",
+            description="desc",
+            date_time="2026-10-20T20:00:00Z",
+            location="Poblado",
+            latitude=6.21,
+            longitude=-75.57,
+            is_free=True,
+        )
+        self.far = Event.objects.create(
+            title="Lejos",
+            description="desc",
+            date_time="2026-10-10T20:00:00Z",
+            location="Norte",
+            latitude=6.35,
+            longitude=-75.50,
+            is_free=True,
+        )
+        self.no_coords = Event.objects.create(
+            title="Sin coordenadas",
+            description="desc",
+            date_time="2026-10-12T20:00:00Z",
+            location="Por definir",
+            is_free=True,
+        )
+
+    def _titles(self, response):
+        return [m["title"] for m in response.context["markers"]]
+
+    def test_radius_filters_markers_for_user_with_accommodation(self):
+        self.client.login(username="traveler", password="pass12345")
+        response = self.client.get(reverse("navigation:event_map"), {"radius_km": "5"})
+        self.assertEqual(self._titles(response), ["Cerca"])
+
+    def test_distance_sort_orders_markers_nearest_first(self):
+        self.client.login(username="traveler", password="pass12345")
+        response = self.client.get(reverse("navigation:event_map"), {"sort": "distance"})
+        self.assertEqual(self._titles(response), ["Cerca", "Lejos"])
+        self.assertEqual(response.context["events_without_coords"], 1)
+
+    def test_radius_is_ignored_without_accommodation(self):
+        response = self.client.get(reverse("navigation:event_map"), {"radius_km": "5"})
+        self.assertEqual(sorted(self._titles(response)), ["Cerca", "Lejos"])
+        self.assertContains(response, "Log in")
