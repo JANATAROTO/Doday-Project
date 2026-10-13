@@ -1,5 +1,3 @@
-import json
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -107,7 +105,7 @@ class EventMapViewTests(TestCase):
         self.assertContains(response, 'id="map"')
         self.assertContains(response, "fake-js-key")
 
-        markers = json.loads(response.context["markers_json"])
+        markers = response.context["markers"]
         self.assertEqual(len(markers), 1)
         self.assertEqual(markers[0]["title"], "Concierto en el parque")
         self.assertEqual(markers[0]["lat"], 6.244)
@@ -115,3 +113,33 @@ class EventMapViewTests(TestCase):
     def test_counts_events_without_coordinates(self):
         response = self.client.get(reverse("navigation:event_map"))
         self.assertEqual(response.context["events_without_coords"], 1)
+
+    def test_counts_event_missing_only_one_coordinate(self):
+        # Latitude without longitude can't be plotted either.
+        Event.objects.create(
+            title="Solo latitud",
+            description="desc",
+            date_time="2026-10-03T10:00:00Z",
+            location="Parcial",
+            latitude=6.25,
+            category=self.category,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(response.context["events_without_coords"], 2)
+
+    @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
+    def test_marker_data_is_script_safe(self):
+        Event.objects.create(
+            title="</script><script>alert(1)</script>",
+            description="desc",
+            date_time="2026-10-04T10:00:00Z",
+            location="XSS",
+            latitude=6.3,
+            longitude=-75.6,
+            category=self.category,
+        )
+        response = self.client.get(reverse("navigation:event_map"))
+        html = response.content.decode()
+        # The raw closing tag must never appear inside the page's JSON blob.
+        self.assertNotIn("</script><script>alert(1)", html)
+        self.assertIn("\\u003C/script\\u003E", html)

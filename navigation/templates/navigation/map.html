@@ -14,8 +14,10 @@
 {% if events_without_coords %}
 <p class="event-meta">⚠️ {{ events_without_coords }} evento(s) todavía no tienen coordenadas y no aparecen en el mapa.</p>
 {% endif %}
+{# json_script escapes <, > and & so event titles can never break out of the script tag. #}
+{{ markers|json_script:"doday-markers" }}
 <script>
-  var DODAY_MARKERS = {{ markers_json|safe }};
+  var DODAY_MARKERS = JSON.parse(document.getElementById("doday-markers").textContent);
 
   function initDodayMap() {
     var center = DODAY_MARKERS.length
@@ -37,14 +39,27 @@
       });
 
       marker.addListener("click", function () {
-        infoWindow.setContent(
-          '<div class="map-preview">' +
-          '<strong>' + event.title + '</strong><br>' +
-          event.category + ' · ' + event.date + '<br>' +
-          event.price + '<br>' +
-          '<a href="' + event.url + '">Ver evento →</a>' +
-          '</div>'
-        );
+        // Build the preview with DOM nodes + textContent (never innerHTML) so
+        // event-controlled text can't inject markup into the InfoWindow.
+        var box = document.createElement("div");
+        box.className = "map-preview";
+
+        var title = document.createElement("strong");
+        title.textContent = event.title;
+        box.appendChild(title);
+        box.appendChild(document.createElement("br"));
+
+        box.appendChild(document.createTextNode(event.category + " · " + event.date));
+        box.appendChild(document.createElement("br"));
+        box.appendChild(document.createTextNode(event.price));
+        box.appendChild(document.createElement("br"));
+
+        var link = document.createElement("a");
+        link.href = event.url;
+        link.textContent = "Ver evento →";
+        box.appendChild(link);
+
+        infoWindow.setContent(box);
         infoWindow.open(map, marker);
       });
     });

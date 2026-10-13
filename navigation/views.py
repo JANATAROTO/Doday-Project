@@ -1,6 +1,5 @@
-import json
-
 from django.conf import settings
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -39,7 +38,11 @@ def event_map(request):
         .exclude(latitude__isnull=True)
         .exclude(longitude__isnull=True)
     )
-    events_without_coords = Event.objects.filter(latitude__isnull=True).count()
+    # Latitude and longitude are nullable independently, so an event missing
+    # either one is left off the map and must be counted in the warning.
+    events_without_coords = Event.objects.filter(
+        Q(latitude__isnull=True) | Q(longitude__isnull=True)
+    ).count()
 
     markers = [
         {
@@ -60,7 +63,8 @@ def event_map(request):
         "navigation/map.html",
         {
             "google_maps_js_key": settings.GOOGLE_MAPS_API_KEY,
-            "markers_json": json.dumps(markers),
+            # Rendered with |json_script in the template (script-safe encoding).
+            "markers": markers,
             "events_without_coords": events_without_coords,
         },
     )
