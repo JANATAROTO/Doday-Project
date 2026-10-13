@@ -136,6 +136,10 @@ LOGOUT_REDIRECT_URL = 'events:event_list'
 # the old Google Distance Matrix integration was replaced by ORS.
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
 ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
+# REQ-13: Ticketmaster Discovery API key
+# Set the TICKETMASTER_API_KEY environment variable to enable event sync.
+# Without it, sync_ticketmaster_events() returns [] silently (same as ORS_API_KEY).
+TICKETMASTER_API_KEY = os.environ.get('TICKETMASTER_API_KEY', '')
 
 
 # Static files (CSS, JavaScript, Images)
