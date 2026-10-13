@@ -17,6 +17,37 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _load_api_keys(filename="api_key.env"):
+    """Load API keys from a key=value file at the project root into os.environ.
+
+    The file is gitignored, so real keys never reach the repository. Blank
+    lines and `#` comments are skipped, and the value is split on the FIRST
+    `=` only because the ORS token is base64 and ends in `=` padding.
+
+    A real environment variable always wins over the file, so
+    `export ORS_API_KEY=...` keeps working. Any problem reading or parsing
+    the file degrades to "no key" in silence -- same defensive contract as
+    the external integrations in navigation/services.py.
+    """
+    path = BASE_DIR / filename
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_api_keys()
+
+
 def _decimal_bounds(value, default):
     """Parse a comma-separated south, north, west, east bounding box."""
     try:

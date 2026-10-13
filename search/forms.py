@@ -43,7 +43,6 @@ class EventFilterForm(forms.Form):
         min_value=Decimal("0.1"),
         max_value=Decimal("500"),
         label="Distancia máxima (km)",
-        help_text="En línea recta desde tu alojamiento. Aplica a todos los eventos.",
         # step="any" on purpose: a stepped input rejects plain values like "3"
         # because they do not land on the step grid.
         widget=forms.NumberInput(attrs={"step": "any", "placeholder": "ej. 5"}),

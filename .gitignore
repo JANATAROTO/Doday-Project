@@ -5,3 +5,9 @@ venv/
 env/
 .venv/
 *.log
+
+# Claves de API locales: nunca deben llegar al repositorio.
+# GitHub detecta las claves subidas y los proveedores las revocan,
+# asi que se perderia el acceso a ORS, Google Maps y Ticketmaster.
+*.env
+api_key.env

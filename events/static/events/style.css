@@ -506,3 +506,20 @@ h1 {
     color: var(--primary);
     font-weight: 600;
 }
+
+/* REQ-09: aviso cuando Google rechaza la clave del mapa (gm_authFailure).
+   Sustituye a la caja gris de Google, que no explica que hay que habilitar
+   la "Maps JavaScript API" en Google Cloud Console. */
+.map-auth-error {
+    border: 1px solid #f0c36d;
+    background: #fdf6e3;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    line-height: 1.5;
+}
+
+.map-auth-error code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+}

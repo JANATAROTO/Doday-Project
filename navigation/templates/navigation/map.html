@@ -39,8 +39,27 @@ accommodation they are quietly ignored; this explains why they do nothing.
 {% endif %}
 {# json_script escapes <, > and & so event titles can never break out of the script tag. #}
 {{ markers|json_script:"doday-markers" }}
+<p id="map-auth-error" class="event-meta map-auth-error" hidden>
+  ⚠️ Google rechazó la clave, así que el mapa no cargó. Causas habituales, en orden:
+  la <strong>"Maps JavaScript API"</strong> no está habilitada en el proyecto de
+  Google Cloud (<code>ApiNotActivatedMapError</code>), o la clave tiene una
+  restricción de <em>HTTP referrer</em> que no incluye este dominio
+  (<code>RefererNotAllowedMapError</code>). El detalle exacto sale en la consola
+  del navegador. Los eventos siguen disponibles en el
+  <a href="{% url 'events:event_list' %}">listado</a>.
+</p>
 <script>
   var DODAY_MARKERS = JSON.parse(document.getElementById("doday-markers").textContent);
+
+  // REQ-09: Google invoca gm_authFailure cuando la clave es rechazada (API sin
+  // habilitar, referrer no permitido, clave invalida). Sin esto el usuario solo
+  // ve la caja gris de Google, que no dice que hay que tocar en Cloud Console.
+  window.gm_authFailure = function () {
+    var box = document.getElementById("map");
+    if (box) { box.hidden = true; }
+    var msg = document.getElementById("map-auth-error");
+    if (msg) { msg.hidden = false; }
+  };
 
   function initDodayMap() {
     var center = DODAY_MARKERS.length
@@ -96,7 +115,8 @@ accommodation they are quietly ignored; this explains why they do nothing.
     }
   }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async"
+        async defer onerror="window.gm_authFailure();"></script>
 {% else %}
 <p class="event-meta">
   Falta configurar la variable de entorno <code>GOOGLE_MAPS_API_KEY</code> (con la
