@@ -1,0 +1,93 @@
+{% extends "events/base.html" %}
+{% load static %}
+
+{% block title %}Map — Doday{% endblock %}
+
+{% block content %}
+<div class="list-header">
+    <h1>Event map</h1>
+</div>
+<p class="event-meta">REQ-09/REQ-10 — explora los eventos en el mapa y haz clic en un marcador para ver su preview.</p>
+
+<form method="get" class="filter-form">
+    {{ filter_form.as_p }}
+    <button type="submit">Filter</button>
+    {% if filter_form.data %}<a href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
+</form>
+
+{% if google_maps_js_key %}
+<div id="map" class="event-map"></div>
+{% if not markers %}
+<p class="event-meta">No hay eventos con coordenadas que coincidan con los filtros.</p>
+{% endif %}
+{% if events_without_coords %}
+<p class="event-meta">⚠️ {{ events_without_coords }} evento(s) todavía no tienen coordenadas y no aparecen en el mapa.</p>
+{% endif %}
+{# json_script escapes <, > and & so event titles can never break out of the script tag. #}
+{{ markers|json_script:"doday-markers" }}
+<script>
+  var DODAY_MARKERS = JSON.parse(document.getElementById("doday-markers").textContent);
+
+  function initDodayMap() {
+    var center = DODAY_MARKERS.length
+      ? { lat: DODAY_MARKERS[0].lat, lng: DODAY_MARKERS[0].lng }
+      : { lat: 6.2442, lng: -75.5812 }; // Medellín, si no hay eventos con coordenadas
+
+    var map = new google.maps.Map(document.getElementById("map"), {
+      center: center,
+      zoom: 13,
+    });
+
+    var infoWindow = new google.maps.InfoWindow();
+    var bounds = new google.maps.LatLngBounds();
+
+    DODAY_MARKERS.forEach(function (event) {
+      var marker = new google.maps.Marker({
+        position: { lat: event.lat, lng: event.lng },
+        map: map,
+        title: event.title,
+      });
+
+      bounds.extend(marker.getPosition());
+
+      marker.addListener("click", function () {
+        // Build the preview with DOM nodes + textContent (never innerHTML) so
+        // event-controlled text can't inject markup into the InfoWindow.
+        var box = document.createElement("div");
+        box.className = "map-preview";
+
+        var title = document.createElement("strong");
+        title.textContent = event.title;
+        box.appendChild(title);
+        box.appendChild(document.createElement("br"));
+
+        box.appendChild(document.createTextNode(event.category + " · " + event.date));
+        box.appendChild(document.createElement("br"));
+        box.appendChild(document.createTextNode(event.price));
+        box.appendChild(document.createElement("br"));
+
+        var link = document.createElement("a");
+        link.href = event.url;
+        link.textContent = "Ver evento →";
+        box.appendChild(link);
+
+        infoWindow.setContent(box);
+        infoWindow.open(map, marker);
+      });
+    });
+
+    // Zoom so every filtered marker is visible (single marker keeps zoom 13).
+    if (DODAY_MARKERS.length > 1) {
+      map.fitBounds(bounds);
+    }
+  }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async" async defer></script>
+{% else %}
+<p class="event-meta">
+  Falta configurar la variable de entorno <code>GOOGLE_MAPS_API_KEY</code> (con la
+  "Maps JavaScript API" habilitada en Google Cloud Console) para ver el mapa
+  interactivo. Mientras tanto, esta página no muestra nada roto — solo este aviso.
+</p>
+{% endif %}
+{% endblock %}

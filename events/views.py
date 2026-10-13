@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from navigation.services import estimate_transit
+from navigation.services import get_transit_route
 from search.forms import EventFilterForm
 from search.services import filter_events
 
@@ -65,18 +65,12 @@ def event_detail(request, pk):
     google_maps_url = event.google_maps_url
 
     # REQ-03: transit estimate via ORS. Only calculate if authenticated & accommodation exists.
-    transit_estimate = None
+    transit_route = None
     accommodation = getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
     if accommodation and event.latitude is not None and event.longitude is not None:
-        try:
-            result = estimate_transit(
-                accommodation.latitude, accommodation.longitude, event.latitude, event.longitude
-            )
-            if result:
-                distance_km, duration_minutes = result
-                transit_estimate = {"distance_km": distance_km, "duration_minutes": duration_minutes}
-        except Exception:
-            transit_estimate = None
+        transit_route = get_transit_route(
+            accommodation.latitude, accommodation.longitude, event.latitude, event.longitude
+        )
 
     return render(
         request,
@@ -84,9 +78,10 @@ def event_detail(request, pk):
         {
             "event": event,
             "accommodation": accommodation,
-            "transit_estimate": transit_estimate,
-            "distance_km": transit_estimate["distance_km"] if transit_estimate else None,
-            "duration_minutes": transit_estimate["duration_minutes"] if transit_estimate else None,
+            "transit_estimate": transit_route,
+            "transit_route": transit_route,
+            "distance_km": transit_route["distance_km"] if transit_route else None,
+            "duration_minutes": transit_route["duration_minutes"] if transit_route else None,
             "google_maps_url": google_maps_url,
             "is_favorited": event.pk in _get_favorite_ids(request),
         },

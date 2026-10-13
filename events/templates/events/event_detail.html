@@ -3,6 +3,10 @@
 
 {% block title %}{{ event.title }} — Doday{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
 {% block content %}
 <a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
 
@@ -58,12 +62,22 @@
     {% endif %}
 </article>
 
+{% if event.latitude is not None and event.longitude is not None %}
 <section class="map-section">
-    <h2>Location</h2>
-    <div class="map-placeholder">
-        <img src="{% static 'events/map-placeholder.png' %}" alt="Map placeholder — Google Maps integration pending">
+    <div class="map-toolbar">
+        <h2>Route to event</h2>
+        <button type="button" id="event-map-toggle" class="edit-link">Full-screen map</button>
     </div>
+    <div id="event-map" aria-label="Map showing the event location and route"></div>
+    {% if transit_route %}
+    <p class="event-meta">🚌 Route from your accommodation: approximately {{ transit_route.distance_km }} km · {{ transit_route.duration_minutes }} min.</p>
+    {% elif accommodation %}
+    <p class="event-meta">Route unavailable. Configure an <code>ORS_API_KEY</code> to calculate it.</p>
+    {% else %}
+    <p class="event-meta"><a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to see the route.</p>
+    {% endif %}
 </section>
+{% endif %}
 
 <script>
     // REQ-18: share event link — copies the current page URL to the clipboard.
@@ -78,4 +92,37 @@
         });
     });
 </script>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if event.latitude is not None and event.longitude is not None %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{{ transit_route.coordinates|default:"[]"|json_script:"route-data" }}
+<script>
+    const eventMap = L.map("event-map").setView([{{ event.latitude }}, {{ event.longitude }}], 14);
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19
+    }).addTo(eventMap);
+    L.marker([{{ event.latitude }}, {{ event.longitude }}]).addTo(eventMap)
+        .bindPopup("<strong>{{ event.title|escapejs }}</strong><br>{{ event.location|escapejs }}")
+        .openPopup();
+    {% if accommodation %}
+    L.marker([{{ accommodation.latitude }}, {{ accommodation.longitude }}]).addTo(eventMap)
+        .bindPopup("Your accommodation");
+    {% endif %}
+    const routeCoordinates = JSON.parse(document.getElementById("route-data").textContent);
+    if (routeCoordinates.length) {
+        const routeLine = L.polyline(routeCoordinates, {color: "#ff5a5f", weight: 5}).addTo(eventMap);
+        eventMap.fitBounds(routeLine.getBounds(), {padding: [24, 24]});
+    }
+    const mapSection = document.querySelector(".map-section");
+    document.getElementById("event-map-toggle").addEventListener("click", function () {
+        mapSection.classList.toggle("map-fullscreen");
+        this.textContent = mapSection.classList.contains("map-fullscreen")
+            ? "Split view" : "Full-screen map";
+        setTimeout(function () { eventMap.invalidateSize(); }, 0);
+    });
+</script>
+{% endif %}
 {% endblock %}

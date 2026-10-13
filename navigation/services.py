@@ -121,29 +121,49 @@ def estimate_transit(origin_lat, origin_lon, dest_lat, dest_lon):
     start = f"{_format_coord(origin_lon)},{_format_coord(origin_lat)}"
     end = f"{_format_coord(dest_lon)},{_format_coord(dest_lat)}"
 
+    route = get_transit_route(origin_lat, origin_lon, dest_lat, dest_lon)
+    if route is None:
+        return None
+    return route["distance_km"], route["duration_minutes"]
+
+
+def get_transit_route(origin_lat, origin_lon, dest_lat, dest_lon):
+    """Return route summary and Leaflet-ready [lat, lon] coordinates."""
+    ors_api_key = getattr(settings, "ORS_API_KEY", "") or os.environ.get("ORS_API_KEY", "")
+    if not ors_api_key:
+        return None
+
+    start = f"{_format_coord(origin_lon)},{_format_coord(origin_lat)}"
+    end = f"{_format_coord(dest_lon)},{_format_coord(dest_lat)}"
+
     try:
         response = requests.get(
             "https://api.openrouteservice.org/v2/directions/driving-car",
-            params={
-                "api_key": ors_api_key,
-                "start": start,
-                "end": end,
-            },
-            headers={
-                "Authorization": ors_api_key,
-            },
+            params={"api_key": ors_api_key, "start": start, "end": end},
+            headers={"Authorization": ors_api_key},
             timeout=5,
         )
         if response.status_code != 200:
             return None
 
         data = response.json()
-
-        summary = None
-        if "features" in data and len(data["features"]) > 0:
-            summary = data["features"][0].get("properties", {}).get("summary", {})
-        elif "routes" in data and len(data["routes"]) > 0:
-            summary = data["routes"][0].get("summary", {})
+        features = data.get("features", [])
+        if features:
+            feature = features[0]
+            summary = feature.get("properties", {}).get("summary", {})
+            geometry = feature.get("geometry", {}).get("coordinates", [])
+            coordinates = [[point[1], point[0]] for point in geometry if len(point) >= 2]
+        else:
+            routes = data.get("routes", [])
+            if not routes:
+                return None
+            route = routes[0]
+            summary = route.get("summary", {})
+            coordinates = [
+                [point[1], point[0]]
+                for point in route.get("geometry", {}).get("coordinates", [])
+                if len(point) >= 2
+            ]
 
         if not summary:
             return None
@@ -157,6 +177,10 @@ def estimate_transit(origin_lat, origin_lon, dest_lat, dest_lon):
         distance_km = round(distance_m / 1000.0, 1)
         duration_minutes = round(duration_s / 60.0)
 
-        return distance_km, duration_minutes
+        return {
+            "distance_km": distance_km,
+            "duration_minutes": duration_minutes,
+            "coordinates": coordinates,
+        }
     except Exception:
         return None
