@@ -143,3 +143,81 @@ class EventMapViewTests(TestCase):
         # The raw closing tag must never appear inside the page's JSON blob.
         self.assertNotIn("</script><script>alert(1)", html)
         self.assertIn("\\u003C/script\\u003E", html)
+
+
+class EventMapFilterTests(TestCase):
+    """REQ-09: the map must plot only the events matching the search filters."""
+
+    def setUp(self):
+        self.music = Category.objects.create(name="Music")
+        self.food = Category.objects.create(name="Food")
+        self.concert = Event.objects.create(
+            title="Concierto en el parque",
+            description="rock",
+            date_time="2026-10-01T20:00:00Z",
+            location="Parque Lleras",
+            latitude=6.244,
+            longitude=-75.581,
+            category=self.music,
+            is_free=True,
+        )
+        self.fair = Event.objects.create(
+            title="Feria gastronomica",
+            description="comida",
+            date_time="2026-10-20T10:00:00Z",
+            location="Plaza Mayor",
+            latitude=6.25,
+            longitude=-75.57,
+            category=self.food,
+            is_free=False,
+            price=15000,
+        )
+        self.no_coords = Event.objects.create(
+            title="Concierto sin coordenadas",
+            description="rock",
+            date_time="2026-10-02T10:00:00Z",
+            location="Por definir",
+            category=self.music,
+            is_free=True,
+        )
+
+    def _titles(self, response):
+        return sorted(m["title"] for m in response.context["markers"])
+
+    def test_no_filters_shows_all_events_with_coordinates(self):
+        response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(len(response.context["markers"]), 2)
+
+    def test_keyword_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"q": "gastronomica"})
+        self.assertEqual(self._titles(response), ["Feria gastronomica"])
+
+    def test_category_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"category": [self.music.pk]})
+        self.assertEqual(self._titles(response), ["Concierto en el parque"])
+
+    def test_free_only_filter(self):
+        response = self.client.get(reverse("navigation:event_map"), {"free_only": "on"})
+        self.assertEqual(self._titles(response), ["Concierto en el parque"])
+
+    def test_date_range_filter(self):
+        response = self.client.get(
+            reverse("navigation:event_map"),
+            {"date_from": "2026-10-15", "date_to": "2026-10-31"},
+        )
+        self.assertEqual(self._titles(response), ["Feria gastronomica"])
+
+    def test_without_coords_count_respects_filters(self):
+        response = self.client.get(reverse("navigation:event_map"), {"q": "sin coordenadas"})
+        self.assertEqual(response.context["events_without_coords"], 1)
+        self.assertEqual(response.context["markers"], [])
+        # Filter that excludes the coordinate-less event -> nothing to warn about.
+        response = self.client.get(reverse("navigation:event_map"), {"q": "gastronomica"})
+        self.assertEqual(response.context["events_without_coords"], 0)
+
+    def test_invalid_form_does_not_crash(self):
+        response = self.client.get(
+            reverse("navigation:event_map"),
+            {"date_from": "2026-10-31", "date_to": "2026-10-01"},
+        )
+        self.assertEqual(response.status_code, 200)

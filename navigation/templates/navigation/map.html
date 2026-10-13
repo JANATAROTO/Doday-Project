@@ -9,8 +9,17 @@
 </div>
 <p class="event-meta">REQ-09/REQ-10 — explora los eventos en el mapa y haz clic en un marcador para ver su preview.</p>
 
+<form method="get" class="filter-form">
+    {{ filter_form.as_p }}
+    <button type="submit">Filter</button>
+    {% if filter_form.data %}<a href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
+</form>
+
 {% if google_maps_js_key %}
 <div id="map" class="event-map"></div>
+{% if not markers %}
+<p class="event-meta">No hay eventos con coordenadas que coincidan con los filtros.</p>
+{% endif %}
 {% if events_without_coords %}
 <p class="event-meta">⚠️ {{ events_without_coords }} evento(s) todavía no tienen coordenadas y no aparecen en el mapa.</p>
 {% endif %}
@@ -30,6 +39,7 @@
     });
 
     var infoWindow = new google.maps.InfoWindow();
+    var bounds = new google.maps.LatLngBounds();
 
     DODAY_MARKERS.forEach(function (event) {
       var marker = new google.maps.Marker({
@@ -37,6 +47,8 @@
         map: map,
         title: event.title,
       });
+
+      bounds.extend(marker.getPosition());
 
       marker.addListener("click", function () {
         // Build the preview with DOM nodes + textContent (never innerHTML) so
@@ -63,6 +75,11 @@
         infoWindow.open(map, marker);
       });
     });
+
+    // Zoom so every filtered marker is visible (single marker keeps zoom 13).
+    if (DODAY_MARKERS.length > 1) {
+      map.fitBounds(bounds);
+    }
   }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async" async defer></script>

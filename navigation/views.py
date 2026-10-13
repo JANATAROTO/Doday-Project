@@ -5,6 +5,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from events.models import Event
+from search.forms import EventFilterForm
+from search.services import filter_events
 
 from .forms import AccommodationForm
 
@@ -28,43 +30,38 @@ def accommodation_edit(request):
 
 
 def event_map(request):
-    """REQ-09: interactive map with every upcoming event that has coordinates.
-    REQ-10: clicking a marker previews the event (title, category, date,
-    price) with a link to its detail page. Needs GOOGLE_MAPS_API_KEY with the
-    Maps JavaScript API enabled — without it we show a setup message instead
-    of a blank/broken map."""
-    events = (
-        Event.objects.select_related("category")
-        .exclude(latitude__isnull=True)
-        .exclude(longitude__isnull=True)
-    )
-    # Latitude and longitude are nullable independently, so an event missing
-    # either one is left off the map and must be counted in the warning.
-    events_without_coords = Event.objects.filter(
+    """REQ-09/REQ-10: interactive map of the *filtered* events.
+
+    Reuses the Search component (EventFilterForm + filter_events) so the map
+    shows exactly the events the catalog would list for the same querystring.
+    """
+    filter_form = EventFilterForm(request.GET or None)
+    filtered = filter_events(Event.objects.select_related("category"), filter_form)
+
+    events = filtered.exclude(latitude__isnull=True).exclude(longitude__isnull=True)
+    events_without_coords = filtered.filter(
         Q(latitude__isnull=True) | Q(longitude__isnull=True)
     ).count()
-
     markers = [
         {
-            "id": event.pk,
-            "title": event.title,
-            "category": event.category.name if event.category else "General",
-            "date": event.date_time.strftime("%d %b %Y — %H:%M"),
-            "price": "Free" if event.is_free else (f"${event.price}" if event.price is not None else "N/A"),
-            "lat": float(event.latitude),
-            "lng": float(event.longitude),
-            "url": reverse("events:event_detail", args=[event.pk]),
+            "id": e.pk,
+            "title": e.title,
+            "category": e.category.name if e.category else "General",
+            "date": e.date_time.strftime("%d %b %Y — %H:%M"),
+            "price": "Free" if e.is_free else (f"${e.price}" if e.price is not None else "N/A"),
+            "lat": float(e.latitude),
+            "lng": float(e.longitude),
+            "url": reverse("events:event_detail", args=[e.pk]),
         }
-        for event in events
+        for e in events
     ]
-
     return render(
         request,
         "navigation/map.html",
         {
             "google_maps_js_key": settings.GOOGLE_MAPS_API_KEY,
-            # Rendered with |json_script in the template (script-safe encoding).
             "markers": markers,
             "events_without_coords": events_without_coords,
+            "filter_form": filter_form,
         },
     )
