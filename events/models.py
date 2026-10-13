@@ -53,8 +53,27 @@ class Event(models.Model):
         help_text="Where attendees can buy tickets for this event (RF21). Leave empty if there's no ticketing link.",
     )
 
+    # REQ-13: external API traceability — lets update_or_create be idempotent
+    external_source = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Source API slug (e.g. 'ticketmaster'). Empty for manually-created events.",
+    )
+    external_id = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Original ID in the external source. Used together with external_source for deduplication.",
+    )
+
     class Meta:
         ordering = ["date_time"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["external_source", "external_id"],
+                name="unique_external_event",
+                condition=~models.Q(external_source=""),
+            )
+        ]
 
     def __str__(self):
         return self.title
