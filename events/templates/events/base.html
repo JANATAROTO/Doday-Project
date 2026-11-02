@@ -18,7 +18,7 @@
                 {% if user.is_authenticated %}
                     {# REQ-01: the only way to review or change a saved accommodation. #}
                     <a href="{% url 'navigation:accommodation_edit' %}">📍 My accommodation</a>
-                    <span>Hi, {{ user.username }}</span>
+                    <span class="auth-greeting">Hi, {{ user.username }}</span>
                     <form method="post" action="{% url 'logout' %}" class="logout-form">
                         {% csrf_token %}
                         <button type="submit" class="link-button">Log out</button>

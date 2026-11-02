@@ -27,6 +27,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .brand {
@@ -39,28 +41,53 @@ body {
 .auth-status {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
     font-size: 0.9rem;
 }
 
-.auth-status a {
+/* Los accesos de la esquina superior derecha son botones de un mismo tamaño:
+   antes eran enlaces subrayados sueltos, de alto distinto según el texto y sin
+   zona de clic clara sobre el rojo de la cabecera. El saludo queda aparte
+   (.auth-greeting) porque es texto, no una acción. */
+.auth-status a,
+.link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-height: 2.25rem;
+    /* Un ancho mínimo para que "Map" no quede mucho más corto que sus
+       vecinos; los textos largos siguen creciendo con su contenido. */
+    min-width: 5.5rem;
+    padding: 0 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
     color: white;
-    text-decoration: underline;
+    font: inherit;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.auth-status a:hover,
+.link-button:hover {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.auth-greeting {
+    opacity: 0.9;
+    white-space: nowrap;
 }
 
 .logout-form {
-    display: inline;
+    display: inline-flex;
     margin: 0;
-}
-
-.link-button {
-    background: none;
-    border: none;
-    color: white;
-    text-decoration: underline;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0;
 }
 
 .tagline {
@@ -240,61 +267,70 @@ h1 {
     line-height: 1.6;
 }
 
-.edit-link {
-    display: inline-block;
-    margin-top: 1.5rem;
-    background: var(--primary);
-    color: white;
-    text-decoration: none;
-    font-weight: 600;
-    padding: 0.6rem 1.2rem;
+/* Un solo tamaño para todos los botones de acción: antes cada uno traía su
+   propio padding, tipografía y margen, así que una fila de botones ("Filter" +
+   "Clear", o las acciones del detalle) salía escalonada. Solo el color cambia
+   de un botón a otro. */
+.edit-link,
+.delete-link,
+.delete-button,
+.share-button,
+.filter-form button,
+.filter-form .filter-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 2.5rem;
+    margin: 0;
+    padding: 0 1.2rem;
+    border: 1px solid transparent;
     border-radius: 8px;
+    font: inherit;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
+.edit-link {
+    background: var(--primary);
+    color: white;
+}
+
+/* El margen superior que antes traía cada botón vive aquí, para que quitarlo
+   de los botones no junte la fila con el precio. */
 .event-actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.event-actions .favorite-form {
+    margin: 0;
 }
 
 .delete-link {
-    display: inline-block;
-    margin-top: 1.5rem;
     background: transparent;
     color: #b91c1c;
-    text-decoration: none;
-    font-weight: 600;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    border: 1px solid #b91c1c;
+    border-color: #b91c1c;
 }
 
 .delete-button {
     background: #b91c1c;
     color: white;
-    border: none;
-    padding: 0.6rem 1.4rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
 }
 
-.favorite-button {
-    border: none;
-    cursor: pointer;
-    font: inherit;
-}
+/* .favorite-button siempre acompaña a .edit-link o .delete-link, así que el
+   tamaño ya se lo dan ellos. */
 
 .share-button {
-    display: inline-block;
-    margin-top: 1.5rem;
     background: #2563eb;
     color: white;
-    border: none;
-    font: inherit;
-    font-weight: 600;
-    padding: 0.35rem 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
 }
 
 .event-card-link {
@@ -318,12 +354,19 @@ h1 {
     margin: 0;
 }
 
+/* Las opciones de búsqueda (palabra clave, fechas, distancia y orden) se
+   presentan como un panel con rejilla: se leen como un solo bloque de filtros
+   y los controles quedan alineados en columnas en vez de escalonados. */
 .filter-form {
-    display: flex;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    align-items: end;
+    gap: 1rem 1.25rem;
     margin: 1rem 0 1.5rem;
+    padding: 1.25rem;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .filter-form p {
@@ -333,17 +376,104 @@ h1 {
     margin: 0;
 }
 
-.filter-form input[type="date"] {
-    padding: 0.5rem;
+.filter-form label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+/* Mismo alto, borde y tipografía para todos los campos, sean texto, fecha,
+   número o selector; antes la palabra clave salía sin estilo y más baja. */
+.filter-form input[type="text"],
+.filter-form input[type="date"],
+.filter-form input[type="number"],
+.filter-form select {
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.6rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
+    background: white;
     font-family: inherit;
     font-size: 1rem;
+    color: inherit;
+}
+
+/* Posición de cada control en la rejilla. Va en CSS porque la plantilla pinta
+   el formulario con {{ form.as_p }} y el orden de los campos lo fija
+   search.forms.EventFilterForm. */
+.filter-form p:has(> #id_q) {
+    grid-column: span 2;
+    order: 1;
+}
+
+.filter-form p:has(> #id_date_from) {
+    order: 2;
+}
+
+.filter-form p:has(> #id_date_to) {
+    order: 3;
+}
+
+.filter-form p:has(> #id_radius_km) {
+    order: 4;
+}
+
+.filter-form p:has(> #id_sort) {
+    order: 5;
+}
+
+.filter-form p:has(> #id_free_only) {
+    order: 6;
+}
+
+/* Las categorías son una fila entera: son tantas casillas que en una sola
+   columna se apilarían y estirarían el resto de la rejilla.
+
+   Ojo: aquí hay dos elementos, no uno. {{ form.as_p }} envuelve el campo en un
+   <p>, pero el widget de categorías es un <div> y un <div> cierra el <p> en el
+   parser de HTML, así que la etiqueta y las casillas acaban siendo hermanas
+   sueltas de la rejilla, más un <p> vacío al final. De ahí el selector por
+   hermano adyacente y el margen negativo, que devuelve la etiqueta junto a sus
+   casillas con la misma separación que en los demás campos. */
+.filter-form p:has(+ #id_category) {
+    grid-column: 1 / -1;
+    order: 7;
+    margin-bottom: -0.7rem;
+}
+
+.filter-form #id_category {
+    grid-column: 1 / -1;
+    order: 8;
+}
+
+/* El <p> huérfano que deja el cierre del widget de categorías. */
+.filter-form p:empty {
+    display: none;
+}
+
+/* Los botones cierran el panel, juntos y del mismo tamaño. */
+.filter-form .filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    grid-column: 1 / -1;
+    order: 9;
+}
+
+/* Los errores de formulario (p. ej. fechas invertidas) encabezan el panel. */
+.filter-form > ul.errorlist {
+    grid-column: 1 / -1;
+    order: 0;
 }
 
 @media (max-width: 760px) {
     .events-layout {
         grid-template-columns: 1fr;
+    }
+
+    .filter-form p:has(> #id_q) {
+        grid-column: auto;
     }
 
     .map-panel {
@@ -369,17 +499,6 @@ h1 {
     width: auto;
 }
 
-/* REQ-08: the radius input is a filter of its own, not a sub-option of the
-   free-admission checkbox it sits next to. */
-.filter-form input[type="number"] {
-    padding: 0.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 1rem;
-    width: 8rem;
-}
-
 .filter-form .helptext {
     font-size: 0.8rem;
     font-weight: normal;
@@ -387,33 +506,32 @@ h1 {
     max-width: 14rem;
 }
 
-/* REQ-14: the order selector, styled like the other filter inputs so it does
-   not read as a different kind of control. */
-.filter-form select {
-    padding: 0.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 1rem;
-    background: white;
-}
-
 /* Keep the free-admission checkbox on one line with its own label, so it
-   cannot be mistaken for a sub-option of the filter beside it. */
+   cannot be mistaken for a sub-option of the filter beside it. El min-height
+   la baja hasta la línea de los campos de su fila, que son más altos. */
 .filter-form p:has(> #id_free_only) {
     flex-direction: row;
     align-items: center;
     gap: 0.4rem;
+    min-height: 2.5rem;
+}
+
+.filter-form p:has(> #id_free_only) label {
+    font-size: 1rem;
+    font-weight: normal;
+    color: inherit;
 }
 
 .filter-form button {
     background: var(--primary);
     color: white;
-    border: none;
-    padding: 0.55rem 1.2rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
+}
+
+/* "Clear" es la acción secundaria: mismo tamaño, color más discreto. */
+.filter-form .filter-clear {
+    background: white;
+    color: var(--dark);
+    border-color: #d1d5db;
 }
 
 .filter-form ul.errorlist {

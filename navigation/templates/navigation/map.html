@@ -11,8 +11,10 @@
 
 <form method="get" class="filter-form">
     {{ filter_form.as_p }}
-    <button type="submit">Filter</button>
-    {% if filter_form.data %}<a href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
+    <div class="filter-actions">
+        <button type="submit">Filter</button>
+        {% if filter_form.data %}<a class="filter-clear" href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
+    </div>
 </form>
 
 {% comment %}
