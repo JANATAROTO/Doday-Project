@@ -23,6 +23,8 @@ from events.forms import EmailAuthenticationForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # REQ-29: set_language view used by the EN/ES switcher in the header.
+    path('i18n/', include('django.conf.urls.i18n')),
     path('accounts/signup/', events_views.signup, name='signup'),
     path(
         'accounts/login/',

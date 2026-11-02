@@ -1,6 +1,7 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,31 +12,44 @@
 <body>
     <header class="site-header">
         <div class="header-row">
-            <a class="brand" href="{% url 'events:event_list' %}">Doday</a>
-            <div class="auth-status">
-                <a href="{% url 'events:favorites_list' %}">☆ Favorites{% if favorite_count %} ({{ favorite_count }}){% endif %}</a>
-                <a href="{% url 'navigation:event_map' %}">🗺️ Map</a>
+            <div class="brand-block">
+                <a class="brand" href="{% url 'events:event_list' %}">Doday</a>
+                <p class="tagline">{% translate "Find events in Medellín" %}</p>
+            </div>
+            <nav class="auth-status" aria-label="{% translate 'Main menu' %}">
+                <a href="{% url 'events:favorites_list' %}">☆ {% translate "Favorites" %}{% if favorite_count %} ({{ favorite_count }}){% endif %}</a>
+                <a href="{% url 'navigation:event_map' %}">🗺️ {% translate "Map" %}</a>
                 {% if user.is_authenticated %}
                     {# REQ-01: the only way to review or change a saved accommodation. #}
-                    <a href="{% url 'navigation:accommodation_edit' %}">📍 My accommodation</a>
-                    <span class="auth-greeting">Hi, {{ user.username }}</span>
+                    <a href="{% url 'navigation:accommodation_edit' %}">📍 {% translate "My accommodation" %}</a>
+                    <span class="auth-greeting">{% blocktranslate with name=user.username %}Hi, {{ name }}{% endblocktranslate %}</span>
                     <form method="post" action="{% url 'logout' %}" class="logout-form">
                         {% csrf_token %}
-                        <button type="submit" class="link-button">Log out</button>
+                        <button type="submit" class="link-button">{% translate "Log out" %}</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'login' %}">Log in</a>
-                    <a href="{% url 'signup' %}">Sign up</a>
+                    <a href="{% url 'login' %}">{% translate "Log in" %}</a>
+                    <a href="{% url 'signup' %}">{% translate "Sign up" %}</a>
                 {% endif %}
-            </div>
+                {# REQ-29: language switcher. Django stores the choice in a cookie; #}
+                {# without a choice the browser language decides (LocaleMiddleware). #}
+                <form method="post" action="{% url 'set_language' %}" class="language-switcher" aria-label="{% translate 'Language' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% get_available_languages as LANGUAGES %}
+                    {% for code, name in LANGUAGES %}
+                    <button type="submit" name="language" value="{{ code }}" title="{{ name }}"
+                            {% if code == LANGUAGE_CODE %}class="is-active" aria-current="true"{% endif %}>{{ code|upper }}</button>
+                    {% endfor %}
+                </form>
+            </nav>
         </div>
-        <p class="tagline">Find events in Medellín</p>
     </header>
     <main>
         {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
-        <p>Doday — academic project</p>
+        <p>{% translate "Doday — academic project" %}</p>
     </footer>
     {% block extra_scripts %}{% endblock %}
 </body>

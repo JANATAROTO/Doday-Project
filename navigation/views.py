@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
+from django.utils.translation import gettext as _
 
 from events.models import Event
 from search.forms import EventFilterForm
@@ -55,9 +57,9 @@ def event_map(request):
         {
             "id": e.pk,
             "title": e.title,
-            "category": e.category.name if e.category else "General",
-            "date": timezone.localtime(e.date_time).strftime("%d %b %Y — %H:%M"),
-            "price": "Free" if e.is_free else (f"${e.price}" if e.price is not None else "N/A"),
+            "category": e.category.display_name if e.category else _("General"),
+            "date": date_format(timezone.localtime(e.date_time), "d M Y — H:i"),
+            "price": e.price_label,
             "lat": float(e.latitude),
             "lng": float(e.longitude),
             "url": reverse("events:event_detail", args=[e.pk]),

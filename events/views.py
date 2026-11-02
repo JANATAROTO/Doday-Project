@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from navigation.services import get_transit_route
@@ -119,7 +120,7 @@ def favorites_list(request):
 def event_create(request):
     """REQ-04: create events (admin/organizer only)."""
     if not request.user.is_staff:
-        raise PermissionDenied("Only admin users can create events.")
+        raise PermissionDenied(_("Only admin users can create events."))
 
     if request.method == "POST":
         form = EventForm(request.POST)
@@ -139,7 +140,7 @@ def event_edit(request, pk):
     """REQ-05: edit events (only the organizer who created it)."""
     event = get_object_or_404(Event, pk=pk)
     if not request.user.is_staff or event.organizer_id != request.user.id:
-        raise PermissionDenied("Only the admin user who organizes this event can edit it.")
+        raise PermissionDenied(_("Only the admin user who organizes this event can edit it."))
 
     if request.method == "POST":
         form = EventForm(request.POST, instance=event)
@@ -157,7 +158,7 @@ def event_delete(request, pk):
     """REQ-06: delete events (only the organizer who created it)."""
     event = get_object_or_404(Event, pk=pk)
     if not request.user.is_staff or event.organizer_id != request.user.id:
-        raise PermissionDenied("Only the admin user who organizes this event can delete it.")
+        raise PermissionDenied(_("Only the admin user who organizes this event can delete it."))
 
     if request.method == "POST":
         event.delete()

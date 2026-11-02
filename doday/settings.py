@@ -91,6 +91,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # REQ-29: picks the interface language from the language switcher (saved
+    # in a cookie) or, on a first visit, from the browser's Accept-Language,
+    # so residents with a Spanish browser get Spanish and visitors English.
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -152,7 +156,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# REQ-29: the interface is available in English (default, for visitors) and
+# Spanish (for residents). Source strings are written in English and the
+# Spanish catalog lives in locale/es/LC_MESSAGES/django.po (compiled .mo is
+# committed so nobody needs gettext installed to run the project).
+LANGUAGE_CODE = 'en'
+
+LANGUAGES = [
+    ('en', 'English'),
+    ('es', 'Español'),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# Colombian thousands separator for Spanish (see doday/formats/es/formats.py).
+FORMAT_MODULE_PATH = ['doday.formats']
 
 TIME_ZONE = 'America/Bogota'
 

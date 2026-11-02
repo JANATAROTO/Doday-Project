@@ -5,8 +5,8 @@ from .models import Category, Event
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name",)
-    search_fields = ("name",)
+    list_display = ("name", "name_en", "name_es")
+    search_fields = ("name", "name_en", "name_es")
 
 
 @admin.register(Event)

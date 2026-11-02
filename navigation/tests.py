@@ -355,7 +355,8 @@ class EventMapViewTests(TestCase):
     @_override_settings(GOOGLE_MAPS_API_KEY="")
     def test_shows_setup_message_without_api_key(self):
         response = self.client.get(reverse("navigation:event_map"))
-        self.assertContains(response, "GOOGLE_MAPS_API_KEY")
+        self.assertContains(response, 'id="map-unavailable"')
+        self.assertContains(response, "The interactive map is not available right now.")
         self.assertNotContains(response, 'id="map"')
 
     @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")

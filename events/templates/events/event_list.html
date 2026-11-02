@@ -1,20 +1,21 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}Events — Doday{% endblock %}
+{% block title %}{% translate "Events" %} — Doday{% endblock %}
 
 {% block content %}
 <div class="list-header">
-    <h1>Upcoming events</h1>
+    <h1>{% translate "Upcoming events" %}</h1>
     {% if user.is_staff %}
-    <a class="edit-link" href="{% url 'events:event_create' %}">+ Create event</a>
+    <a class="edit-link" href="{% url 'events:event_create' %}">+ {% translate "Create event" %}</a>
     {% endif %}
 </div>
 
 <form method="get" class="filter-form">
     {{ filter_form.as_p }}
     <div class="filter-actions">
-        <button type="submit">Filter</button>
-        {% if filter_form.data %}<a class="filter-clear" href="{% url 'events:event_list' %}">Clear</a>{% endif %}
+        <button type="submit">{% translate "Filter" %}</button>
+        {% if filter_form.data %}<a class="filter-clear" href="{% url 'events:event_list' %}">{% translate "Clear" %}</a>{% endif %}
     </div>
 </form>
 
@@ -24,11 +25,13 @@ measure from, so without an accommodation they are quietly ignored and this
 explains why the two controls appear to do nothing.
 {% endcomment %}
 {% if not accommodation %}
-<p class="event-meta">
+<p class="notice">
     {% if user.is_authenticated %}
-    <a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to filter and sort events by distance.
+    {% url 'navigation:accommodation_edit' as accommodation_url %}
+    {% blocktranslate %}<a href="{{ accommodation_url }}">Set your accommodation</a> to filter and sort events by distance.{% endblocktranslate %}
     {% else %}
-    <a href="{% url 'login' %}?next={% url 'events:event_list' %}">Log in</a> and set your accommodation to filter and sort events by distance.
+    {% url 'login' as login_url %}{% url 'events:event_list' as list_url %}
+    {% blocktranslate %}<a href="{{ login_url }}?next={{ list_url }}">Log in</a> and set your accommodation to filter and sort events by distance.{% endblocktranslate %}
     {% endif %}
 </p>
 {% endif %}
@@ -38,7 +41,7 @@ explains why the two controls appear to do nothing.
     {% for event in events %}
     <a class="event-card" href="{% url 'events:event_detail' event.pk %}">
         <div class="event-badges">
-            <span class="event-category">{{ event.category|default:"General" }}</span>
+            <span class="event-category">{% if event.category %}{{ event.category.display_name }}{% else %}{% translate "General" %}{% endif %}</span>
             {% for badge in event.badges %}
             <span class="event-badge event-badge-{{ badge.slug }}">{{ badge.label }}</span>
             {% endfor %}
@@ -50,15 +53,15 @@ explains why the two controls appear to do nothing.
         </p>
         <p class="event-meta">📍 {{ event.location }}</p>
         {% if event.distance_km != None %}
-        <p class="event-meta">📏 {{ event.distance_km }} km from your accommodation</p>
+        <p class="event-meta">📏 {% blocktranslate with distance=event.distance_km %}{{ distance }} km from your accommodation{% endblocktranslate %}</p>
         {% endif %}
-        <p class="event-price">
-            {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
-        </p>
+        <p class="event-price">{{ event.price_label }}</p>
     </a>
     {% endfor %}
 </div>
+{% elif filter_form.data %}
+<p class="empty-state">{% translate "No events match your filters." %} <a href="{% url 'events:event_list' %}">{% translate "Clear filters" %}</a></p>
 {% else %}
-<p>No events available yet.</p>
+<p class="empty-state">{% translate "No events available yet." %}</p>
 {% endif %}
 {% endblock %}

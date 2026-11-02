@@ -1,19 +1,20 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}My favorites — Doday{% endblock %}
+{% block title %}{% translate "My favorites" %} — Doday{% endblock %}
 
 {% block content %}
-<div class="list-header">
-    <h1>My favorites</h1>
+<div class="list-header page-header">
+    <h1>{% translate "My favorites" %}</h1>
 </div>
 
 {% if events %}
 <div class="event-grid">
     {% for event in events %}
-    <div class="event-card">
+    <div class="event-card favorite-card">
         <a class="event-card-link" href="{% url 'events:event_detail' event.pk %}">
             <div class="event-badges">
-                <span class="event-category">{{ event.category|default:"General" }}</span>
+                <span class="event-category">{% if event.category %}{{ event.category.display_name }}{% else %}{% translate "General" %}{% endif %}</span>
                 {% for badge in event.badges %}
                 <span class="event-badge event-badge-{{ badge.slug }}">{{ badge.label }}</span>
                 {% endfor %}
@@ -24,19 +25,17 @@
                 {% if event.end_date %} → {{ event.end_date|date:"D, d M Y — H:i" }}{% endif %}
             </p>
             <p class="event-meta">📍 {{ event.location }}</p>
-            <p class="event-price">
-                {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
-            </p>
+            <p class="event-price">{{ event.price_label }}</p>
         </a>
         <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'events:favorites_list' %}">
-            <button type="submit" class="favorite-button delete-link">★ Remove</button>
+            <button type="submit" class="favorite-button delete-link">★ {% translate "Remove" %}</button>
         </form>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<p>You haven't saved any favorites yet. <a href="{% url 'events:event_list' %}">Browse events</a>.</p>
+<p class="empty-state">{% translate "You haven't saved any favorites yet." %} <a href="{% url 'events:event_list' %}">{% translate "Browse events" %}</a></p>
 {% endif %}
 {% endblock %}

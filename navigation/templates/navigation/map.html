@@ -1,19 +1,19 @@
 {% extends "events/base.html" %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Map — Doday{% endblock %}
+{% block title %}{% translate "Map" %} — Doday{% endblock %}
 
 {% block content %}
 <div class="list-header">
-    <h1>Event map</h1>
+    <h1>{% translate "Event map" %}</h1>
 </div>
-<p class="event-meta">REQ-09/REQ-10 — explora los eventos en el mapa y haz clic en un marcador para ver su preview.</p>
+<p class="page-intro">{% translate "Explore the events on the map and click a marker to see a summary." %}</p>
 
 <form method="get" class="filter-form">
     {{ filter_form.as_p }}
     <div class="filter-actions">
-        <button type="submit">Filter</button>
-        {% if filter_form.data %}<a class="filter-clear" href="{% url 'navigation:event_map' %}">Clear</a>{% endif %}
+        <button type="submit">{% translate "Filter" %}</button>
+        {% if filter_form.data %}<a class="filter-clear" href="{% url 'navigation:event_map' %}">{% translate "Clear" %}</a>{% endif %}
     </div>
 </form>
 
@@ -22,11 +22,13 @@ REQ-08/REQ-14: the radius and the proximity order need an origin, so without an
 accommodation they are quietly ignored; this explains why they do nothing.
 {% endcomment %}
 {% if not accommodation %}
-<p class="event-meta">
+<p class="notice">
     {% if user.is_authenticated %}
-    <a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to filter and sort events by distance.
+    {% url 'navigation:accommodation_edit' as accommodation_url %}
+    {% blocktranslate %}<a href="{{ accommodation_url }}">Set your accommodation</a> to filter and sort events by distance.{% endblocktranslate %}
     {% else %}
-    <a href="{% url 'login' %}?next={% url 'navigation:event_map' %}">Log in</a> and set your accommodation to filter and sort events by distance.
+    {% url 'login' as login_url %}{% url 'navigation:event_map' as map_url %}
+    {% blocktranslate %}<a href="{{ login_url }}?next={{ map_url }}">Log in</a> and set your accommodation to filter and sort events by distance.{% endblocktranslate %}
     {% endif %}
 </p>
 {% endif %}
@@ -34,22 +36,18 @@ accommodation they are quietly ignored; this explains why they do nothing.
 {% if google_maps_js_key %}
 <div id="map" class="event-map"></div>
 {% if not markers %}
-<p class="event-meta">No hay eventos con coordenadas que coincidan con los filtros.</p>
+<p class="notice">{% translate "No events on the map match your filters." %}</p>
 {% endif %}
 {% if events_without_coords %}
-<p class="event-meta">⚠️ {{ events_without_coords }} evento(s) todavía no tienen coordenadas y no aparecen en el mapa.</p>
+<p class="event-meta">{% blocktranslate count counter=events_without_coords %}⚠️ {{ counter }} event has no location yet and is not shown on the map.{% plural %}⚠️ {{ counter }} events have no location yet and are not shown on the map.{% endblocktranslate %}</p>
 {% endif %}
 {# json_script escapes <, > and & so event titles can never break out of the script tag. #}
 {{ markers|json_script:"doday-markers" }}
-<p id="map-auth-error" class="event-meta map-auth-error" hidden>
-  ⚠️ Google rechazó la clave, así que el mapa no cargó. Causas habituales, en orden:
-  la <strong>"Maps JavaScript API"</strong> no está habilitada en el proyecto de
-  Google Cloud (<code>ApiNotActivatedMapError</code>), o la clave tiene una
-  restricción de <em>HTTP referrer</em> que no incluye este dominio
-  (<code>RefererNotAllowedMapError</code>). El detalle exacto sale en la consola
-  del navegador. Los eventos siguen disponibles en el
-  <a href="{% url 'events:event_list' %}">listado</a>.
+{% url 'events:event_list' as list_url %}
+<p id="map-auth-error" class="notice notice-warning" hidden>
+  {% blocktranslate %}⚠️ The map could not be loaded right now. You can still browse all the events in the <a href="{{ list_url }}">event list</a>.{% endblocktranslate %}
 </p>
+{% translate "View event" as view_event %}
 <script>
   var DODAY_MARKERS = JSON.parse(document.getElementById("doday-markers").textContent);
 
@@ -57,6 +55,8 @@ accommodation they are quietly ignored; this explains why they do nothing.
   // habilitar, referrer no permitido, clave invalida). Sin esto el usuario solo
   // ve la caja gris de Google, que no dice que hay que tocar en Cloud Console.
   window.gm_authFailure = function () {
+    // Technical detail for developers only; visitors get the short notice.
+    console.warn("Doday: Google Maps rejected the key. Check that the Maps JavaScript API is enabled and that the key's HTTP referrer restrictions include this address (see the Google error above).");
     var box = document.getElementById("map");
     if (box) { box.hidden = true; }
     var msg = document.getElementById("map-auth-error");
@@ -66,7 +66,7 @@ accommodation they are quietly ignored; this explains why they do nothing.
   function initDodayMap() {
     var center = DODAY_MARKERS.length
       ? { lat: DODAY_MARKERS[0].lat, lng: DODAY_MARKERS[0].lng }
-      : { lat: 6.2442, lng: -75.5812 }; // Medellín, si no hay eventos con coordenadas
+      : { lat: 6.2442, lng: -75.5812 }; // Medellín, when no event has coordinates
 
     var map = new google.maps.Map(document.getElementById("map"), {
       center: center,
@@ -103,7 +103,7 @@ accommodation they are quietly ignored; this explains why they do nothing.
 
         var link = document.createElement("a");
         link.href = event.url;
-        link.textContent = "Ver evento →";
+        link.textContent = "{{ view_event|escapejs }} →";
         box.appendChild(link);
 
         infoWindow.setContent(box);
@@ -117,13 +117,16 @@ accommodation they are quietly ignored; this explains why they do nothing.
     }
   }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async"
+{% get_current_language as LANGUAGE_CODE %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initDodayMap&loading=async&language={{ LANGUAGE_CODE }}"
         async defer onerror="window.gm_authFailure();"></script>
 {% else %}
-<p class="event-meta">
-  Falta configurar la variable de entorno <code>GOOGLE_MAPS_API_KEY</code> (con la
-  "Maps JavaScript API" habilitada en Google Cloud Console) para ver el mapa
-  interactivo. Mientras tanto, esta página no muestra nada roto — solo este aviso.
+{# Without GOOGLE_MAPS_API_KEY the page explains the map is unavailable instead #}
+{# of showing a broken box; setup steps are in the README. #}
+{% url 'events:event_list' as list_url %}
+<p id="map-unavailable" class="notice notice-warning">
+  {% blocktranslate %}The interactive map is not available right now. You can still browse all the events in the <a href="{{ list_url }}">event list</a>.{% endblocktranslate %}
 </p>
+<script>console.info("Doday: set the GOOGLE_MAPS_API_KEY environment variable (Maps JavaScript API) to enable the interactive map.");</script>
 {% endif %}
 {% endblock %}

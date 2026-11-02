@@ -1,15 +1,17 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}Sign up — Doday{% endblock %}
+{% block title %}{% translate "Sign up" %} — Doday{% endblock %}
 
 {% block content %}
-<h1>Create your account</h1>
+<h1>{% translate "Create your account" %}</h1>
 
-<form method="post" class="auth-form">
+<form method="post" class="auth-form form-card">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Sign up</button>
+    {{ form.as_div }}
+    <div class="form-actions">
+        <button type="submit">{% translate "Sign up" %}</button>
+    </div>
+    <p class="form-footer"><a href="{% url 'login' %}">{% translate "Already have an account? Log in" %}</a></p>
 </form>
-
-<p class="event-meta"><a href="{% url 'login' %}">Already have an account? Log in</a></p>
 {% endblock %}

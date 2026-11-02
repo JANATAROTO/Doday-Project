@@ -1,20 +1,18 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}Log in — Doday{% endblock %}
+{% block title %}{% translate "Log in" %} — Doday{% endblock %}
 
 {% block content %}
-<h1>Log in</h1>
+<h1>{% translate "Log in" %}</h1>
 
-{% if form.errors %}
-<p class="form-error">Your username and password didn't match. Please try again.</p>
-{% endif %}
-
-<form method="post" class="auth-form">
+<form method="post" class="auth-form form-card">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Log in</button>
+    {{ form.as_div }}
     <input type="hidden" name="next" value="{{ next }}">
+    <div class="form-actions">
+        <button type="submit">{% translate "Log in" %}</button>
+    </div>
+    <p class="form-footer"><a href="{% url 'signup' %}">{% translate "Don't have an account? Sign up" %}</a></p>
 </form>
-
-<p class="event-meta"><a href="{% url 'signup' %}">Don't have an account? Sign up</a></p>
 {% endblock %}

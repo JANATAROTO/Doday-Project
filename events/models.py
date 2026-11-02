@@ -4,10 +4,18 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.formats import number_format
+from django.utils.translation import get_language, gettext, gettext_lazy as _
+
+from .category_names import bilingual_names
 
 
 class Category(models.Model):
     name = models.CharField(max_length=50, unique=True)
+    # REQ-29: name shown in each interface language. Filled in automatically
+    # for known categories (events/category_names.py); empty means "use name".
+    name_en = models.CharField("name (English)", max_length=50, blank=True)
+    name_es = models.CharField("name (Spanish)", max_length=50, blank=True)
 
     class Meta:
         verbose_name_plural = "categories"
@@ -15,6 +23,20 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        known = bilingual_names(self.name)
+        if known:
+            self.name_en = self.name_en or known[0]
+            self.name_es = self.name_es or known[1]
+        super().save(*args, **kwargs)
+
+    @property
+    def display_name(self):
+        """The category name in the active interface language."""
+        if (get_language() or "").startswith("es"):
+            return self.name_es or self.name
+        return self.name_en or self.name
 
 
 class Event(models.Model):
@@ -83,15 +105,16 @@ class Event(models.Model):
 
     def clean(self):
         if self.end_date and self.end_date < self.date_time:
-            raise ValidationError({"end_date": "End date must be on or after the start date."})
+            raise ValidationError({"end_date": _("End date must be on or after the start date.")})
 
     @property
     def badges(self):
         """REQ-23: real-time status badges rendered on every event card.
 
-        "Hoy" takes precedence over "Esta semana" so a card never shows two
+        "Today" takes precedence over "This week" so a card never shows two
         overlapping date badges, and an event that already finished gets no
-        date badge at all. "Gratis" is independent and can accompany either.
+        date badge at all. "Free" is independent and can accompany either.
+        Labels follow the active language (REQ-29); the slug drives the CSS.
 
         Pure Python over fields that are already loaded — no extra queries,
         so it is safe to call once per card in a list.
@@ -104,14 +127,29 @@ class Event(models.Model):
         last_day = timezone.localtime(self.end_date).date() if self.end_date else first_day
 
         if first_day <= today <= last_day:
-            badges.append({"label": "Hoy", "slug": "today"})
+            badges.append({"label": gettext("Today"), "slug": "today"})
         elif today < first_day <= today + timedelta(days=7):
-            badges.append({"label": "Esta semana", "slug": "this-week"})
+            badges.append({"label": gettext("This week"), "slug": "this-week"})
 
         if self.is_free:
-            badges.append({"label": "Gratis", "slug": "free"})
+            badges.append({"label": gettext("Free"), "slug": "free"})
 
         return badges
+
+    @property
+    def price_label(self):
+        """REQ-29: one price format for cards, detail page and map pop-ups.
+
+        Prices are Colombian pesos without cents, grouped with the active
+        language's thousands separator ("$85,000" in English, "$85.000" in
+        Spanish) instead of the raw "$85000.00".
+        """
+        if self.is_free:
+            return gettext("Free")
+        if self.price is None:
+            return gettext("Price not available")
+        amount = number_format(self.price, decimal_pos=0, force_grouping=True)
+        return f"${amount}"
 
     @property
     def google_maps_url(self):

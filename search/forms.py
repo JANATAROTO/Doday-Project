@@ -1,12 +1,20 @@
 from decimal import Decimal
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from events.models import Category
 
 # REQ-14: shared with search.services, which reads the chosen value.
 SORT_DATE = "date"
 SORT_DISTANCE = "distance"
+
+
+class CategoryChoiceField(forms.ModelMultipleChoiceField):
+    """REQ-29: category checkboxes in the active interface language."""
+
+    def label_from_instance(self, obj):
+        return obj.display_name
 
 
 class EventFilterForm(forms.Form):
@@ -24,14 +32,19 @@ class EventFilterForm(forms.Form):
 
     q = forms.CharField(
         required=False,
-        label="Keyword",
-        widget=forms.TextInput(attrs={"placeholder": "Search events..."}),
+        label=_("Keyword"),
+        widget=forms.TextInput(attrs={"placeholder": _("Search events...")}),
     )
-    date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    category = forms.ModelMultipleChoiceField(
+    date_from = forms.DateField(
+        required=False, label=_("From"), widget=forms.DateInput(attrs={"type": "date"})
+    )
+    date_to = forms.DateField(
+        required=False, label=_("To"), widget=forms.DateInput(attrs={"type": "date"})
+    )
+    category = CategoryChoiceField(
         queryset=Category.objects.all(),
         required=False,
+        label=_("Category"),
         widget=forms.CheckboxSelectMultiple,
     )
     # REQ-08: only usable once the user has saved an accommodation (REQ-01);
@@ -42,12 +55,12 @@ class EventFilterForm(forms.Form):
         required=False,
         min_value=Decimal("0.1"),
         max_value=Decimal("500"),
-        label="Distancia máxima (km)",
+        label=_("Maximum distance (km)"),
         # step="any" on purpose: a stepped input rejects plain values like "3"
         # because they do not land on the step grid.
-        widget=forms.NumberInput(attrs={"step": "any", "placeholder": "ej. 5"}),
+        widget=forms.NumberInput(attrs={"step": "any", "placeholder": _("e.g. 5")}),
     )
-    free_only = forms.BooleanField(required=False, label="Solo gratis")
+    free_only = forms.BooleanField(required=False, label=_("Free events only"))
     # REQ-14: "sorted by physical proximity distance to the accommodation or
     # start date" — date is the default because it needs no accommodation and
     # matches Event.Meta.ordering.
@@ -60,9 +73,9 @@ class EventFilterForm(forms.Form):
     # filter_events() ignores an unusable sort and the template explains why.
     sort = forms.ChoiceField(
         required=False,
-        choices=[(SORT_DATE, "Fecha"), (SORT_DISTANCE, "Distancia")],
+        choices=[(SORT_DATE, _("Date")), (SORT_DISTANCE, _("Distance"))],
         initial=SORT_DATE,
-        label="Ordenar por",
+        label=_("Sort by"),
     )
 
     def clean(self):
@@ -70,5 +83,5 @@ class EventFilterForm(forms.Form):
         date_from = cleaned_data.get("date_from")
         date_to = cleaned_data.get("date_to")
         if date_from and date_to and date_from > date_to:
-            raise forms.ValidationError("The start date must be on or before the end date.")
+            raise forms.ValidationError(_("The start date must be on or before the end date."))
         return cleaned_data
