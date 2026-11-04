@@ -63,6 +63,18 @@ componentes del Component Diagram (ver la Wiki, Entregable 2):
   (REQ-09, REQ-10).
 - El listado de eventos incluye mapa Leaflet en vista dividida y un botón para
   cambiar a mapa de pantalla completa (REQ-27).
+- **events** también recibe las propuestas de eventos de la comunidad con el
+  formulario público "Proponer un evento" (REQ-24) y la pantalla de
+  moderación del personal para aprobarlas o rechazarlas (REQ-25). Solo los
+  eventos aprobados aparecen en el catálogo, la búsqueda, el mapa y favoritos.
+- **analytics**: registra de forma anónima las vistas de eventos, los
+  favoritos y los clics en "Comprar boletas", y muestra al personal un panel
+  en `/analytics/` con eventos más vistos, interés por categoría, actividad
+  por día de la semana y oferta próxima (REQ-30).
+  - Para una demostración con datos simulados:
+    `python manage.py generate_demo_interactions --days 30` (agrega
+    `--clear` para borrar antes las interacciones existentes). Úsalo solo en
+    una base de datos de demostración.
 
 ## Idiomas (REQ-29)
 

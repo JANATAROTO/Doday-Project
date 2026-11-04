@@ -1039,3 +1039,208 @@ main a:not([class]):hover {
     background: #fef3c7;
     color: #b45309;
 }
+
+/* REQ-30: analytics dashboard. Bars are plain CSS (no chart library), so the
+   page works offline and its labels translate like the rest of the app. */
+.segmented {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: white;
+}
+
+.segmented a {
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    color: var(--dark);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.segmented a.is-active {
+    background: var(--primary);
+    color: white;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 0.5rem;
+}
+
+.kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+}
+
+.kpi-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+.kpi-label {
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.insights {
+    margin: 1rem 0;
+    padding: 0.25rem 1.25rem 0.75rem;
+    border-left: 4px solid #d97706;
+    border-radius: var(--radius);
+    background: #fffbeb;
+}
+
+.insights .section-title {
+    margin-top: 0.75rem;
+}
+
+.insights ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    line-height: 1.6;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.analytics-card {
+    padding: 0.25rem 1.25rem 1.25rem;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+}
+
+.analytics-card .section-title {
+    margin-top: 1rem;
+}
+
+.subsection-title {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.chart-note {
+    margin: -0.25rem 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.bar-row {
+    display: grid;
+    grid-template-columns: minmax(6rem, 10rem) 1fr 2.5rem;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.bar-label {
+    color: var(--dark);
+    text-decoration: none;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bar-track {
+    height: 0.75rem;
+    border-radius: 999px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+}
+
+.bar-fill-supply {
+    background: #2563eb;
+}
+
+a.bar-label:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.bar-value {
+    font-weight: 700;
+    text-align: right;
+}
+
+.bar-detail {
+    margin: 0.15rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.column-chart {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    align-items: end;
+    gap: 0.5rem;
+    height: 11rem;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    height: 100%;
+}
+
+.column-track {
+    display: flex;
+    align-items: flex-end;
+    flex: 1;
+    width: 100%;
+    border-radius: 6px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.column-fill {
+    width: 100%;
+    background: var(--primary);
+}
+
+.column-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.column-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.split-bar {
+    height: 1rem;
+    border-radius: 999px;
+    background: #2563eb;
+    overflow: hidden;
+}
+
+.split-free {
+    height: 100%;
+    background: #15803d;
+}

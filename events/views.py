@@ -8,6 +8,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from analytics.models import EventInteraction
+from analytics.services import record as record_interaction
 from navigation.services import get_transit_route
 from search.forms import EventFilterForm
 from search.services import filter_events
@@ -69,6 +71,8 @@ def event_detail(request, pk):
     # can open them to review before deciding.
     if not event.is_published and not request.user.is_staff:
         raise Http404
+    if event.is_published:
+        record_interaction(request, event, EventInteraction.Kind.VIEW)  # REQ-30
 
     # REQ-15: External navigation link to Google Maps
     google_maps_url = event.google_maps_url
@@ -108,6 +112,7 @@ def favorite_toggle(request, pk):
         favorite_ids.remove(event.pk)
     else:
         favorite_ids.append(event.pk)
+        record_interaction(request, event, EventInteraction.Kind.FAVORITE)  # REQ-30
     request.session["favorite_ids"] = favorite_ids
 
     next_url = request.POST.get("next")
@@ -234,3 +239,13 @@ def event_moderate(request, pk):
         return redirect("events:moderation")
     event.save(update_fields=["status"])
     return redirect("events:moderation")
+
+
+def event_tickets(request, pk):
+    """REQ-21 + REQ-30: the "Buy tickets" button passes through here so the
+    click is counted before sending the visitor to the external ticket page."""
+    event = get_object_or_404(Event.objects.published(), pk=pk)
+    if not event.ticket_url:
+        raise Http404
+    record_interaction(request, event, EventInteraction.Kind.TICKET_CLICK)
+    return redirect(event.ticket_url)
