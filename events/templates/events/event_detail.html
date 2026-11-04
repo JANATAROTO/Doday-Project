@@ -39,7 +39,7 @@
     {# REQ-29: one primary action (buy tickets); the rest are secondary buttons of the same size. #}
     <div class="event-actions">
         {% if event.ticket_url %}
-        <a class="edit-link" href="{{ event.ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ {% translate "Buy tickets" %}</a>
+        <a class="edit-link" href="{% url 'events:event_tickets' event.pk %}" target="_blank" rel="noopener noreferrer">🎟️ {% translate "Buy tickets" %}</a>
         {% endif %}
         {% if google_maps_url %}
         <a class="secondary-button" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">🧭 {% translate "Open in Google Maps" %}</a>

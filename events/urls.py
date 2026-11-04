@@ -15,4 +15,5 @@ urlpatterns = [
     path("<int:pk>/edit/", views.event_edit, name="event_edit"),
     path("<int:pk>/delete/", views.event_delete, name="event_delete"),
     path("<int:pk>/favorite/", views.favorite_toggle, name="favorite_toggle"),
+    path("<int:pk>/tickets/", views.event_tickets, name="event_tickets"),  # REQ-30
 ]

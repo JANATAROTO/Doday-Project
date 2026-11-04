@@ -1,0 +1,106 @@
+{% extends "events/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Analytics" %} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
+
+<div class="list-header">
+    <h1>{% translate "Analytics" %}</h1>
+    {# REQ-30: period selector. #}
+    <nav class="segmented" aria-label="{% translate 'Period' %}">
+        {% for days in period_choices %}
+        <a href="?days={{ days }}" class="{% if days == period_days %}is-active{% endif %}">{% blocktranslate %}{{ days }} days{% endblocktranslate %}</a>
+        {% endfor %}
+    </nav>
+</div>
+<p class="page-intro">{% blocktranslate with since=since|date:"d M Y" %}What visitors are interested in since {{ since }}, next to what the catalog offers. Only anonymous counts are stored: no names, accounts or IP addresses.{% endblocktranslate %}</p>
+
+<section class="kpi-grid" aria-label="{% translate 'Key figures' %}">
+    <div class="kpi"><span class="kpi-value">{{ kpis.views }}</span><span class="kpi-label">{% translate "Event views" %}</span></div>
+    <div class="kpi"><span class="kpi-value">{{ kpis.favorites }}</span><span class="kpi-label">{% translate "Saved to favorites" %}</span></div>
+    <div class="kpi"><span class="kpi-value">{{ kpis.ticket_clicks }}</span><span class="kpi-label">{% translate "Ticket link clicks" %}</span></div>
+    <div class="kpi"><span class="kpi-value">{{ kpis.click_through_rate }}%</span><span class="kpi-label">{% translate "Views that end in a ticket click" %}</span></div>
+    <div class="kpi"><span class="kpi-value">{{ kpis.upcoming_events }}</span><span class="kpi-label">{% translate "Upcoming events" %}</span></div>
+    <div class="kpi"><span class="kpi-value">{{ kpis.published_events }}</span><span class="kpi-label">{% translate "Published events" %}</span></div>
+</section>
+
+{% if insights %}
+<section class="insights">
+    <h2 class="section-title">💡 {% translate "Insights" %}</h2>
+    <ul>
+        {% for insight in insights %}<li>{{ insight }}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if not has_data %}
+<p class="empty-state">{% translate "There is no visitor activity in this period yet. The charts fill in as people open events, save them and follow ticket links." %}</p>
+{% endif %}
+
+<div class="analytics-grid">
+    <section class="analytics-card">
+        <h2 class="section-title">{% translate "Events with the most interest" %}</h2>
+        <p class="chart-note">{% translate "Interest = views + 3 × favorites + 5 × ticket clicks." %}</p>
+        {% for row in top_events %}
+        <div class="bar-row">
+            <a class="bar-label" href="{% url 'events:event_detail' row.event_id %}">{{ row.event__title }}</a>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ row.bar }}%"></div></div>
+            <span class="bar-value">{{ row.interest }}</span>
+        </div>
+        <p class="bar-detail">{% blocktranslate with views=row.views favorites=row.favorites clicks=row.ticket_clicks %}{{ views }} views · {{ favorites }} favorites · {{ clicks }} ticket clicks{% endblocktranslate %}</p>
+        {% empty %}
+        <p class="chart-note">{% translate "No data yet." %}</p>
+        {% endfor %}
+    </section>
+
+    <section class="analytics-card">
+        <h2 class="section-title">{% translate "Interest by category" %}</h2>
+        <p class="chart-note">{% translate "Interest per event compares demand with how many events the category has." %}</p>
+        {% for row in by_category %}
+        <div class="bar-row">
+            <span class="bar-label">{{ row.name }}</span>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ row.bar }}%"></div></div>
+            <span class="bar-value">{{ row.interest }}</span>
+        </div>
+        <p class="bar-detail">{% blocktranslate count events=row.events with per_event=row.interest_per_event rate=row.ticket_rate %}{{ events }} published event · {{ per_event }} interest per event · {{ rate }}% ticket clicks{% plural %}{{ events }} published events · {{ per_event }} interest per event · {{ rate }}% ticket clicks{% endblocktranslate %}</p>
+        {% empty %}
+        <p class="chart-note">{% translate "No data yet." %}</p>
+        {% endfor %}
+    </section>
+
+    <section class="analytics-card">
+        <h2 class="section-title">{% translate "Activity by day of the week" %}</h2>
+        <div class="column-chart">
+            {% for row in by_weekday %}
+            <div class="column">
+                <span class="column-value">{{ row.total }}</span>
+                <div class="column-track"><div class="column-fill" style="height: {{ row.bar }}%"></div></div>
+                <span class="column-label">{{ row.label|slice:":3" }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="analytics-card">
+        <h2 class="section-title">{% translate "Upcoming events per week" %}</h2>
+        {% for row in by_week %}
+        <div class="bar-row">
+            <span class="bar-label">{% blocktranslate with day=row.week|date:"d M" %}Week of {{ day }}{% endblocktranslate %}</span>
+            <div class="bar-track"><div class="bar-fill bar-fill-supply" style="width: {{ row.bar }}%"></div></div>
+            <span class="bar-value">{{ row.total }}</span>
+        </div>
+        {% empty %}
+        <p class="chart-note">{% translate "No upcoming events in the next 8 weeks." %}</p>
+        {% endfor %}
+        {% if kpis.upcoming_events %}
+        <h3 class="subsection-title">{% translate "Free vs. paid (upcoming)" %}</h3>
+        <div class="split-bar" role="img" aria-label="{% blocktranslate with rate=free_rate %}{{ rate }}% free{% endblocktranslate %}">
+            <div class="split-free" style="width: {{ free_rate }}%"></div>
+        </div>
+        <p class="bar-detail">{% blocktranslate with free=free_upcoming paid=paid_upcoming %}{{ free }} free · {{ paid }} paid{% endblocktranslate %}</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

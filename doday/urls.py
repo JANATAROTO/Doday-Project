@@ -32,6 +32,7 @@ urlpatterns = [
         name='login',
     ),
     path('accounts/', include('django.contrib.auth.urls')),
+    path('analytics/', include('analytics.urls')),
     path('', include('navigation.urls')),
     path('', include('events.urls')),
 ]
