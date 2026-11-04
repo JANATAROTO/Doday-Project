@@ -88,3 +88,29 @@ class SignupForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+
+class EventSubmissionForm(EventForm):
+    """REQ-24: public form for local cultural managers to propose an event.
+
+    Same event fields and labels as the staff form, plus who is proposing it,
+    so a moderator can get back to them. The view saves it as pending.
+    """
+
+    class Meta(EventForm.Meta):
+        fields = EventForm.Meta.fields + ["submitter_name", "submitter_email"]
+        labels = {
+            **EventForm.Meta.labels,
+            "submitter_name": _("Your name or organization"),
+            "submitter_email": _("Contact email"),
+        }
+        help_texts = {
+            **EventForm.Meta.help_texts,
+            "submitter_name": "",
+            "submitter_email": _("We only use it to contact you about this proposal."),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["submitter_name"].required = True
+        self.fields["submitter_email"].required = True

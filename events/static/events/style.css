@@ -925,3 +925,117 @@ main a:not([class]):hover {
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
 }
+
+/* Page-level actions next to a page title (create, moderation, propose). */
+.header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: white;
+    font-size: 0.75rem;
+}
+
+.messages .notice {
+    margin-top: 0;
+}
+
+.notice-success {
+    border-left-color: #15803d;
+    background: #f0fdf4;
+}
+
+.notice-error {
+    border-left-color: var(--danger);
+    background: #fef2f2;
+}
+
+/* REQ-25: moderation queue. */
+.section-title {
+    margin: 1.75rem 0 0.75rem;
+    font-size: 1.15rem;
+}
+
+.moderation-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.moderation-card {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+}
+
+.moderation-info {
+    flex: 1 1 24rem;
+}
+
+.moderation-info h3 {
+    margin: 0.25rem 0;
+}
+
+.moderation-description {
+    margin: 0.5rem 0 0;
+    line-height: 1.5;
+}
+
+.moderation-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.decision-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.decision-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: var(--card-bg);
+}
+
+.status-pill {
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.status-approved {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-rejected {
+    background: #fee2e2;
+    color: var(--danger);
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #b45309;
+}

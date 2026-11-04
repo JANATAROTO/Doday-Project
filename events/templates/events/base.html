@@ -46,6 +46,13 @@
         </div>
     </header>
     <main>
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <p class="notice notice-{{ message.tags }}" role="status">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
