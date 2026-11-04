@@ -46,6 +46,42 @@
 
 9. abrir http://127.0.0.1:8000/ o el que salga.
 
+## Despliegue en AWS Academy (EC2)
+
+Pasos para poner en el servidor la última versión de `main`:
+
+1. Entrar a la instancia y actualizar el código:
+   - `cd Doday-Project && git pull origin main`
+   - `source venv/bin/activate && pip install -r requirements.txt`
+2. Crear o actualizar `api_key.env` en la raíz del proyecto (no se sube al
+   repositorio). Además de las llaves de las APIs, debe incluir la IP pública
+   o el dominio del servidor; sin eso Django responde *400 Bad Request*:
+
+   ```
+   DJANGO_ALLOWED_HOSTS=<IP-publica>,localhost,127.0.0.1
+   DJANGO_SECRET_KEY=<una clave larga y secreta>
+   GOOGLE_MAPS_API_KEY=...
+   ORS_API_KEY=...
+   TICKETMASTER_API_KEY=...
+   ```
+3. Aplicar las migraciones (la versión final agrega tablas y columnas):
+   - `python manage.py migrate`
+   - opcional, solo si la base está vacía: `python manage.py seed_events` y
+     `python manage.py createsuperuser`
+4. Levantar el servidor escuchando en todas las interfaces:
+   - `python manage.py runserver 0.0.0.0:8000`
+   - En el *Security Group* de la instancia debe estar abierto el puerto 8000
+     (o el 80 si se usa Nginx).
+5. En Google Cloud Console, agregar `http://<IP-publica>:8000/*` a las
+   restricciones de sitio web de la llave de Google Maps; si no, el mapa
+   muestra el aviso "El mapa no se pudo cargar".
+6. Si la IP pública cambia al reiniciar el laboratorio, actualizar
+   `DJANGO_ALLOWED_HOSTS` y la restricción de la llave de Google.
+
+Con `DJANGO_DEBUG=False` hay que correr `python manage.py collectstatic` y
+servir la carpeta `staticfiles/` con un servidor web como Nginx; con el valor
+por defecto (`True`) `runserver` sirve los estilos por sí mismo.
+
 ## Estructura del proyecto
 
 El código está organizado en tres apps de Django que corresponden a los
