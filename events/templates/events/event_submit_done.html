@@ -1,0 +1,15 @@
+{% extends "events/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Proposal received" %} — Doday{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h1>✅ {% translate "Proposal received" %}</h1>
+    <p>{% blocktranslate with title=event.title %}Thank you! We received <strong>{{ title }}</strong>. Our team will review it and it will appear in the catalog once it is approved.{% endblocktranslate %}</p>
+    <div class="form-actions">
+        <a class="edit-link" href="{% url 'events:event_list' %}">{% translate "Back to events" %}</a>
+        <a class="secondary-button" href="{% url 'events:event_submit' %}">{% translate "Propose another event" %}</a>
+    </div>
+</div>
+{% endblock %}

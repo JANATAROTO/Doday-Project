@@ -6,9 +6,15 @@
 {% block content %}
 <div class="list-header">
     <h1>{% translate "Upcoming events" %}</h1>
-    {% if user.is_staff %}
-    <a class="edit-link" href="{% url 'events:event_create' %}">+ {% translate "Create event" %}</a>
-    {% endif %}
+    <div class="header-actions">
+        {% if user.is_staff %}
+        <a class="secondary-button" href="{% url 'events:moderation' %}">🛡️ {% translate "Moderation" %}{% if pending_count %} <span class="count-pill">{{ pending_count }}</span>{% endif %}</a>
+        <a class="edit-link" href="{% url 'events:event_create' %}">+ {% translate "Create event" %}</a>
+        {% else %}
+        {# REQ-24: anyone can propose an event; staff create them directly. #}
+        <a class="secondary-button" href="{% url 'events:event_submit' %}">📣 {% translate "Propose an event" %}</a>
+        {% endif %}
+    </div>
 </div>
 
 <form method="get" class="filter-form">

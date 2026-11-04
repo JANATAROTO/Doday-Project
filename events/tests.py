@@ -355,3 +355,104 @@ class CategoryTranslationTests(TestCase):
         response = self.client.get(reverse("events:event_list"), HTTP_ACCEPT_LANGUAGE="es")
         self.assertContains(response, '<span class="event-category">Música</span>')
         self.assertNotContains(response, '<span class="event-category">Music</span>')
+
+
+class CommunitySubmissionTests(TestCase):
+    """REQ-24: public event proposals. REQ-25: staff moderation."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user("admin@doday.co", "admin@doday.co", "pass12345!", is_staff=True)
+        self.user = User.objects.create_user("ana@doday.co", "ana@doday.co", "pass12345!")
+        self.category = Category.objects.create(name="Ferias")
+
+    def _proposal(self, **extra):
+        data = {
+            "title": "Feria de emprendedores",
+            "description": "Productos locales",
+            "date_time": (timezone.now() + timedelta(days=10)).strftime("%Y-%m-%dT%H:%M"),
+            "location": "Parque de los Deseos",
+            "category": self.category.pk,
+            "is_free": "on",
+            "submitter_name": "Corporación Cultural",
+            "submitter_email": "cultura@example.com",
+        }
+        data.update(extra)
+        return data
+
+    def test_anyone_can_open_the_form(self):
+        response = self.client.get(reverse("events:event_submit"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Propose an event")
+
+    def test_submission_is_saved_as_pending_and_hidden(self):
+        response = self.client.post(reverse("events:event_submit"), self._proposal())
+        self.assertContains(response, "Proposal received")
+        event = Event.objects.get(title="Feria de emprendedores")
+        self.assertEqual(event.status, Event.Status.PENDING)
+        self.assertIsNone(event.organizer)
+
+        self.assertNotContains(self.client.get(reverse("events:event_list")), "Feria de emprendedores")
+        self.assertEqual(self.client.get(reverse("events:event_detail", args=[event.pk])).status_code, 404)
+
+    def test_contact_details_are_required(self):
+        response = self.client.post(
+            reverse("events:event_submit"), self._proposal(submitter_name="", submitter_email="")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Event.objects.filter(title="Feria de emprendedores").exists())
+
+    def test_staff_approves_and_the_event_is_published(self):
+        self.client.post(reverse("events:event_submit"), self._proposal())
+        event = Event.objects.get(title="Feria de emprendedores")
+        self.client.force_login(self.staff)
+        self.assertContains(self.client.get(reverse("events:moderation")), "Feria de emprendedores")
+
+        response = self.client.post(reverse("events:event_moderate", args=[event.pk]), {"decision": "approve"})
+        self.assertRedirects(response, reverse("events:moderation"))
+        event.refresh_from_db()
+        self.assertEqual(event.status, Event.Status.APPROVED)
+
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("events:event_list")), "Feria de emprendedores")
+
+    def test_staff_rejects_and_the_event_stays_hidden(self):
+        self.client.post(reverse("events:event_submit"), self._proposal())
+        event = Event.objects.get(title="Feria de emprendedores")
+        self.client.force_login(self.staff)
+        self.client.post(reverse("events:event_moderate", args=[event.pk]), {"decision": "reject"})
+        event.refresh_from_db()
+        self.assertEqual(event.status, Event.Status.REJECTED)
+        self.client.logout()
+        self.assertNotContains(self.client.get(reverse("events:event_list")), "Feria de emprendedores")
+
+    def test_staff_can_preview_a_pending_event(self):
+        self.client.post(reverse("events:event_submit"), self._proposal())
+        event = Event.objects.get(title="Feria de emprendedores")
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("events:event_detail", args=[event.pk]))
+        self.assertContains(response, "This event is not public")
+
+    def test_regular_users_cannot_moderate(self):
+        self.client.post(reverse("events:event_submit"), self._proposal())
+        event = Event.objects.get(title="Feria de emprendedores")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("events:moderation")).status_code, 403)
+        response = self.client.post(reverse("events:event_moderate", args=[event.pk]), {"decision": "approve"})
+        self.assertEqual(response.status_code, 403)
+        event.refresh_from_db()
+        self.assertEqual(event.status, Event.Status.PENDING)
+
+    def test_pending_events_are_not_on_the_map(self):
+        from django.test import override_settings
+
+        Event.objects.create(
+            title="Pendiente", description="d", date_time=timezone.now() + timedelta(days=3),
+            location="x", latitude=6.24, longitude=-75.58, status=Event.Status.PENDING,
+        )
+        with override_settings(GOOGLE_MAPS_API_KEY="k"):
+            response = self.client.get(reverse("navigation:event_map"))
+        self.assertEqual(response.context["markers"], [])
+
+    def test_staff_events_are_published_immediately(self):
+        event = Event.objects.create(title="Staff", description="d", date_time=timezone.now(), location="x")
+        self.assertEqual(event.status, Event.Status.APPROVED)

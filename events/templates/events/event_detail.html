@@ -10,6 +10,14 @@
 {% block content %}
 <a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
 
+{% if not event.is_published %}
+{# REQ-25: only staff reach an unpublished proposal; remind them it is not public. #}
+<p class="notice notice-warning">
+    {% blocktranslate with status=event.get_status_display %}This event is not public ({{ status }}).{% endblocktranslate %}
+    <a href="{% url 'events:moderation' %}">{% translate "Go to moderation" %}</a>
+</p>
+{% endif %}
+
 <article class="event-detail">
     <div class="event-badges">
         <span class="event-category">{% if event.category %}{{ event.category.display_name }}{% else %}{% translate "General" %}{% endif %}</span>

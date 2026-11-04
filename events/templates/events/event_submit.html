@@ -1,0 +1,21 @@
+{% extends "events/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Propose an event" %} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
+
+<h1>{% translate "Propose an event" %}</h1>
+<p class="page-intro">{% translate "Are you organizing something in Medellín? Tell us about it. Our team reviews every proposal before it is published." %}</p>
+
+{# REQ-24: public submission form; the event is saved as pending (REQ-25). #}
+<form method="post" class="auth-form form-card form-wide">
+    {% csrf_token %}
+    {{ form.as_div }}
+    <div class="form-actions">
+        <button type="submit">{% translate "Send proposal" %}</button>
+        <a class="secondary-button" href="{% url 'events:event_list' %}">{% translate "Cancel" %}</a>
+    </div>
+</form>
+{% endblock %}

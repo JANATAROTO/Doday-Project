@@ -39,7 +39,25 @@ class Category(models.Model):
         return self.name_en or self.name
 
 
+class EventQuerySet(models.QuerySet):
+    def published(self):
+        """REQ-24/25: only approved events reach the catalog, search, map and
+        favorites. Community proposals stay hidden until a moderator approves
+        them; every public listing goes through this one method."""
+        return self.filter(status=Event.Status.APPROVED)
+
+    def pending(self):
+        return self.filter(status=Event.Status.PENDING)
+
+
 class Event(models.Model):
+    class Status(models.TextChoices):
+        # Events created by staff, synced from Ticketmaster or seeded are
+        # published right away; only community proposals start as pending.
+        PENDING = "pending", _("Pending review")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
     organizer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -90,6 +108,26 @@ class Event(models.Model):
         help_text="Original ID in the external source. Used together with external_source for deduplication.",
     )
 
+    # REQ-24: community submissions. REQ-25: moderation status.
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.APPROVED,
+        db_index=True,
+        help_text="Only approved events are shown to the public (REQ-25).",
+    )
+    submitter_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Who proposed the event through the public form (REQ-24). Empty for staff events.",
+    )
+    submitter_email = models.EmailField(
+        blank=True,
+        help_text="Contact email of the person who proposed the event (REQ-24).",
+    )
+
+    objects = EventQuerySet.as_manager()
+
     class Meta:
         ordering = ["date_time"]
         constraints = [
@@ -102,6 +140,10 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_published(self):
+        return self.status == self.Status.APPROVED
 
     def clean(self):
         if self.end_date and self.end_date < self.date_time:

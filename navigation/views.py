@@ -49,7 +49,7 @@ def event_map(request):
     # With an origin filter_events returns a list (distances are computed in
     # Python); without one it returns a queryset. list() covers both.
     filtered = list(
-        filter_events(Event.objects.select_related("category"), filter_form, origin=origin)
+        filter_events(Event.objects.published().select_related("category"), filter_form, origin=origin)
     )
     events = [e for e in filtered if e.latitude is not None and e.longitude is not None]
     events_without_coords = len(filtered) - len(events)

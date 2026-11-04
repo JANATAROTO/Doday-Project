@@ -1,0 +1,50 @@
+{% extends "events/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Moderation" %} — Doday{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
+
+<h1>{% translate "Moderation" %}</h1>
+<p class="page-intro">{% translate "Events proposed by the community. Approve them to publish them or reject them to keep them hidden." %}</p>
+
+{# REQ-25: approve or reject community proposals (REQ-24). #}
+<h2 class="section-title">{% translate "Waiting for review" %} ({{ pending|length }})</h2>
+{% if pending %}
+<div class="moderation-list">
+    {% for event in pending %}
+    <article class="moderation-card">
+        <div class="moderation-info">
+            <div class="event-badges">
+                <span class="event-category">{% if event.category %}{{ event.category.display_name }}{% else %}{% translate "General" %}{% endif %}</span>
+            </div>
+            <h3><a href="{% url 'events:event_detail' event.pk %}">{{ event.title }}</a></h3>
+            <p class="event-meta">📅 {{ event.date_time|date:"D, d M Y — H:i" }} · 📍 {{ event.location }} · {{ event.price_label }}</p>
+            <p class="event-meta">{% blocktranslate with name=event.submitter_name email=event.submitter_email %}Proposed by {{ name }} ({{ email }}){% endblocktranslate %}</p>
+            <p class="moderation-description">{{ event.description|truncatewords:40 }}</p>
+        </div>
+        <form method="post" action="{% url 'events:event_moderate' event.pk %}" class="moderation-actions">
+            {% csrf_token %}
+            <button type="submit" name="decision" value="approve" class="edit-link">✓ {% translate "Approve" %}</button>
+            <button type="submit" name="decision" value="reject" class="delete-link">✕ {% translate "Reject" %}</button>
+        </form>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">{% translate "There are no proposals waiting for review." %}</p>
+{% endif %}
+
+{% if reviewed %}
+<h2 class="section-title">{% translate "Latest decisions" %}</h2>
+<ul class="decision-list">
+    {% for event in reviewed %}
+    <li>
+        <a href="{% url 'events:event_detail' event.pk %}">{{ event.title }}</a>
+        <span class="status-pill status-{{ event.status }}">{{ event.get_status_display }}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
