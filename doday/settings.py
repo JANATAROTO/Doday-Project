@@ -71,7 +71,23 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+
+
+def _env_list(name):
+    """Comma-separated environment variable as a list ("a, b" -> ["a", "b"])."""
+    return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
+
+
+# Deployment (AWS Academy EC2): the server's public IP or domain must be listed
+# here, otherwise Django answers 400 Bad Request. Set it as an environment
+# variable or in api_key.env on the server, e.g.
+#   DJANGO_ALLOWED_HOSTS=54.123.45.67,localhost,127.0.0.1
+# Empty (the default) keeps the local development behaviour.
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
+
+# Only needed when the site is served over HTTPS or behind a proxy, e.g.
+#   DJANGO_CSRF_TRUSTED_ORIGINS=https://doday.example.com
+CSRF_TRUSTED_ORIGINS = _env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
 
 
 # Application definition
@@ -213,6 +229,9 @@ ACCOMMODATION_ALLOWED_BOUNDS = _decimal_bounds(
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+# `python manage.py collectstatic` copies the CSS here when DEBUG is False and
+# a web server (e.g. Nginx) serves the static files.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # https://docs.djangoproject.com/en/6.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
