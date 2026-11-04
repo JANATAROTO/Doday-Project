@@ -1,19 +1,23 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}My accommodation — Doday{% endblock %}
+{% block title %}{% translate "My accommodation" %} — Doday{% endblock %}
 
 {% block content %}
-<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
 
-<h1>My accommodation</h1>
-<p class="event-meta">Set your home location to see estimated transit distance/time to events.</p>
-{% if form.show_coordinate_fields %}
-<p class="event-meta">The address lookup is unavailable right now, so please enter the coordinates yourself.</p>
-{% endif %}
+<h1>{% translate "My accommodation" %}</h1>
+<p class="page-intro">{% translate "Save where you are staying to see how far each event is and how to get there." %}</p>
 
-<form method="post" class="auth-form">
+<form method="post" class="auth-form form-card">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
+    {% if form.show_coordinate_fields %}
+    <p class="notice">{% translate "The address lookup is unavailable right now, so please enter the coordinates yourself." %}</p>
+    {% endif %}
+    {{ form.as_div }}
+    <div class="form-actions">
+        <button type="submit">{% translate "Save" %}</button>
+        <a class="secondary-button" href="{% url 'events:event_list' %}">{% translate "Cancel" %}</a>
+    </div>
 </form>
 {% endblock %}

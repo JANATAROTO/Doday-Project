@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from .models import Accommodation
 from .services import geocode_address
@@ -16,7 +17,7 @@ class AccommodationForm(forms.ModelForm):
 
     COORDINATE_FIELDS = ("latitude", "longitude")
 
-    LOOKUP_FAILED = (
+    LOOKUP_FAILED = _(
         "We could not find the coordinates for that address. "
         "Check the address, or enter the latitude and longitude manually."
     )
@@ -24,8 +25,13 @@ class AccommodationForm(forms.ModelForm):
     class Meta:
         model = Accommodation
         fields = ["address", "latitude", "longitude"]
+        labels = {
+            "address": _("Address"),
+            "latitude": _("Latitude"),
+            "longitude": _("Longitude"),
+        }
         help_texts = {
-            "address": "Street address or place name — we look up the coordinates for you.",
+            "address": _("Street address or place name. We look up the coordinates for you."),
         }
 
     def __init__(self, *args, **kwargs):

@@ -1,9 +1,15 @@
 :root {
     --primary: #ff5a5f;
+    --primary-dark: #e0484d;
+    --primary-tint: #ffe3e4;
     --dark: #1f2933;
     --muted: #6b7280;
+    --border: #d1d5db;
     --bg: #f7f7f8;
     --card-bg: #ffffff;
+    --danger: #b91c1c;
+    --radius: 12px;
+    --shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -90,9 +96,48 @@ body {
     margin: 0;
 }
 
+.brand-block {
+    display: flex;
+    flex-direction: column;
+}
+
 .tagline {
     margin: 0.25rem 0 0;
     opacity: 0.9;
+}
+
+/* REQ-29: EN / ES switcher, a compact segmented pill next to the menu. */
+.language-switcher {
+    display: inline-flex;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.language-switcher button {
+    min-width: 2.4rem;
+    min-height: calc(2.25rem - 6px);
+    padding: 0 0.6rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: white;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+.language-switcher button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.language-switcher button.is-active {
+    background: white;
+    color: var(--primary);
 }
 
 main {
@@ -156,6 +201,60 @@ main {
 
 h1 {
     margin-top: 0;
+}
+
+/* Plain links inside the page use the brand colour instead of the browser's
+   default blue/purple. Links styled as buttons carry a class and are skipped. */
+main a:not([class]) {
+    color: var(--primary-dark);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+main a:not([class]):hover {
+    text-decoration: underline;
+}
+
+.page-intro {
+    margin: -0.5rem 0 1rem;
+    color: var(--muted);
+}
+
+/* .list-header removes the h1 margin, so the intro needs its own gap there. */
+.list-header + .page-intro {
+    margin-top: 0.5rem;
+}
+
+.page-header {
+    margin-bottom: 1.25rem;
+}
+
+/* One style for every hint or informational message (accommodation needed,
+   route unavailable, no results...), instead of loose grey lines. */
+.notice {
+    margin: 0.75rem 0 1.25rem;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--dark);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    box-shadow: var(--shadow);
+}
+
+.notice-warning {
+    border-left-color: #d97706;
+    background: #fffbeb;
+}
+
+.empty-state {
+    padding: 2rem;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+    text-align: center;
+    color: var(--muted);
 }
 
 .event-grid {
@@ -275,6 +374,8 @@ h1 {
 .delete-link,
 .delete-button,
 .share-button,
+.secondary-button,
+.auth-form button,
 .filter-form button,
 .filter-form .filter-clear {
     display: inline-flex;
@@ -300,6 +401,39 @@ h1 {
     color: white;
 }
 
+.edit-link:hover,
+.filter-form button:hover,
+.auth-form button:not(.delete-button):hover {
+    background: var(--primary-dark);
+}
+
+/* REQ-29: secondary actions (Google Maps, favorites, share, edit, cancel...)
+   share size with the primary button but stay visually quieter, so each
+   screen has one obvious main action. */
+.secondary-button {
+    background: white;
+    color: var(--dark);
+    border-color: var(--border);
+}
+
+.secondary-button:hover {
+    background: #f3f4f6;
+}
+
+.edit-link:focus-visible,
+.delete-link:focus-visible,
+.delete-button:focus-visible,
+.secondary-button:focus-visible,
+.auth-form button:focus-visible,
+.filter-form button:focus-visible,
+.filter-form .filter-clear:focus-visible,
+.language-switcher button:focus-visible,
+.auth-status a:focus-visible,
+.link-button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+}
+
 /* El margen superior que antes traía cada botón vive aquí, para que quitarlo
    de los botones no junte la fila con el precio. */
 .event-actions {
@@ -315,23 +449,33 @@ h1 {
 }
 
 .delete-link {
-    background: transparent;
-    color: #b91c1c;
-    border-color: #b91c1c;
+    background: white;
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.delete-link:hover {
+    background: #fef2f2;
 }
 
 .delete-button {
-    background: #b91c1c;
+    background: var(--danger);
     color: white;
+}
+
+.delete-button:hover {
+    background: #991b1b;
+}
+
+/* The owner's edit/delete row is separated from the visitor actions above. */
+.owner-actions {
+    padding-top: 1.25rem;
+    border-top: 1px solid #e5e7eb;
 }
 
 /* .favorite-button siempre acompaña a .edit-link o .delete-link, así que el
    tamaño ya se lo dan ellos. */
 
-.share-button {
-    background: #2563eb;
-    color: white;
-}
 
 .event-card-link {
     display: block;
@@ -341,6 +485,21 @@ h1 {
 
 .favorite-form {
     margin-top: 0.75rem;
+}
+
+/* Favorites: the Remove button sits at the bottom of every card, so a row of
+   cards keeps its buttons aligned whatever the title length. */
+.favorite-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.favorite-card .event-card-link {
+    flex: 1;
+}
+
+.favorite-card .favorite-form {
+    margin-top: 1rem;
 }
 
 .list-header {
@@ -472,6 +631,29 @@ h1 {
         grid-template-columns: 1fr;
     }
 
+    /* Phone header: brand and tagline first, then the menu below, left aligned. */
+    .site-header {
+        padding: 1.25rem 1rem;
+    }
+
+    .header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .auth-status {
+        justify-content: flex-start;
+    }
+
+    main {
+        padding: 1.5rem 1rem;
+    }
+
+    .event-detail,
+    .form-card {
+        padding: 1.25rem;
+    }
+
     .filter-form p:has(> #id_q) {
         grid-column: auto;
     }
@@ -551,6 +733,10 @@ h1 {
     margin-bottom: 0.75rem;
 }
 
+.map-toolbar {
+    margin-bottom: 0.75rem;
+}
+
 .map-placeholder {
     position: relative;
     border-radius: 12px;
@@ -568,35 +754,133 @@ h1 {
 }
 
 .auth-form p {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
     margin: 0 0 1rem;
 }
 
-.auth-form input,
+/* Forms render with {{ form.as_div }}: one block per field, with the label,
+   the control, its help text and its errors in that visual order, so an
+   error always sits under the field it belongs to. */
+.auth-form > div:not(.form-actions) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0 0 1.1rem;
+}
+
+.auth-form > div > label { order: 0; }
+.auth-form > div > input,
+.auth-form > div > select,
+.auth-form > div > textarea { order: 1; }
+.auth-form > div > .helptext { order: 2; }
+.auth-form > div > ul.errorlist { order: 3; }
+
+/* REQ-29: every form (log in, sign up, accommodation, create/edit/delete
+   event) sits in the same white card as the filter panel. */
+.form-card {
+    max-width: 32rem;
+    padding: 1.75rem;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+}
+
+.form-card.form-wide {
+    max-width: none;
+}
+
+.auth-form label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.auth-form input:not([type="checkbox"]),
 .auth-form select,
 .auth-form textarea {
-    padding: 0.5rem;
-    border: 1px solid #d1d5db;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
     border-radius: 6px;
+    background: white;
     font-family: inherit;
     font-size: 1rem;
+    color: inherit;
 }
 
-.auth-form button {
+.auth-form input:focus,
+.auth-form select:focus,
+.auth-form textarea:focus,
+.filter-form input:focus,
+.filter-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-tint);
+}
+
+/* Checkboxes (e.g. "Free event") sit on one line with their label. */
+.auth-form > div:has(> input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.auth-form input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: var(--primary);
+}
+
+.auth-form .helptext {
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.auth-form .helptext ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.auth-form ul.errorlist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--danger);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.auth-form button:not(.delete-button) {
     background: var(--primary);
     color: white;
-    border: none;
-    padding: 0.6rem 1.4rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
 }
 
-.form-error {
-    color: #b91c1c;
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.form-footer {
+    margin: 1.25rem 0 0 !important;
+    font-size: 0.95rem;
+}
+
+.form-error,
+.auth-form > ul.errorlist.nonfield {
+    color: var(--danger);
     font-weight: 600;
+}
+
+/* Errors about the whole form (wrong login, address not found) open the card. */
+.auth-form > ul.errorlist.nonfield {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: #fef2f2;
+    list-style: none;
 }
 
 .site-footer {

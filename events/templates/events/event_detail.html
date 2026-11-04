@@ -1,5 +1,5 @@
 {% extends "events/base.html" %}
-{% load static %}
+{% load static i18n %}
 
 {% block title %}{{ event.title }} — Doday{% endblock %}
 
@@ -8,11 +8,11 @@
 {% endblock %}
 
 {% block content %}
-<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
 
 <article class="event-detail">
     <div class="event-badges">
-        <span class="event-category">{{ event.category|default:"General" }}</span>
+        <span class="event-category">{% if event.category %}{{ event.category.display_name }}{% else %}{% translate "General" %}{% endif %}</span>
         {% for badge in event.badges %}
         <span class="event-badge event-badge-{{ badge.slug }}">{{ badge.label }}</span>
         {% endfor %}
@@ -23,41 +23,44 @@
         {% if event.end_date %} → {{ event.end_date|date:"l, d F Y — H:i" }}{% endif %}
     </p>
     <p class="event-meta">📍 {{ event.location }}</p>
-    <p class="event-price">
-        {% if event.is_free %}Free{% else %}${{ event.price }}{% endif %}
-    </p>
+    {% if transit_estimate %}
+    <p class="event-meta">🚌 {% blocktranslate with distance=transit_estimate.distance_km minutes=transit_estimate.duration_minutes %}About {{ distance }} km · {{ minutes }} min from your accommodation{% endblocktranslate %}</p>
+    {% endif %}
+    <p class="event-price">{{ event.price_label }}</p>
+
+    {# REQ-29: one primary action (buy tickets); the rest are secondary buttons of the same size. #}
     <div class="event-actions">
         {% if event.ticket_url %}
-        <a class="edit-link" href="{{ event.ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ Buy tickets</a>
+        <a class="edit-link" href="{{ event.ticket_url }}" target="_blank" rel="noopener noreferrer">🎟️ {% translate "Buy tickets" %}</a>
         {% endif %}
         {% if google_maps_url %}
-        <a class="edit-link" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>
+        <a class="secondary-button" href="{{ google_maps_url }}" target="_blank" rel="noopener noreferrer">🧭 {% translate "Open in Google Maps" %}</a>
         {% endif %}
         {% if user.is_authenticated %}
         <form method="post" action="{% url 'events:favorite_toggle' event.pk %}" class="favorite-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'events:event_detail' event.pk %}">
-            <button type="submit" class="favorite-button {% if is_favorited %}delete-link{% else %}edit-link{% endif %}">
-                {% if is_favorited %}★ Remove from favorites{% else %}☆ Save to favorites{% endif %}
+            <button type="submit" class="favorite-button {% if is_favorited %}delete-link{% else %}secondary-button{% endif %}">
+                {% if is_favorited %}★ {% translate "Remove from favorites" %}{% else %}☆ {% translate "Save to favorites" %}{% endif %}
             </button>
         </form>
         {% else %}
-        <a class="edit-link" href="{% url 'login' %}?next={% url 'events:event_detail' event.pk %}">☆ Log in to save favorites</a>
+        <a class="secondary-button" href="{% url 'login' %}?next={% url 'events:event_detail' event.pk %}">☆ {% translate "Log in to save favorites" %}</a>
         {% endif %}
-        <button type="button" class="share-button" id="share-button">🔗 Share</button>
+        <button type="button" class="share-button secondary-button" id="share-button">🔗 {% translate "Share" %}</button>
     </div>
+
     <p class="event-description">{{ event.description }}</p>
 
-    {% if transit_estimate %}
-    <p class="event-meta">🚌 ~{{ transit_estimate.distance_km }} km · {{ transit_estimate.duration_minutes }} min from your accommodation</p>
-    {% elif user.is_authenticated and not accommodation %}
-    <p class="event-meta"><a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to see transit time to this event.</p>
+    {# Without coordinates there is no map section, so the accommodation hint lives here. #}
+    {% if user.is_authenticated and not accommodation and event.latitude is None %}
+    <p class="notice">{% url 'navigation:accommodation_edit' as accommodation_url %}{% blocktranslate %}<a href="{{ accommodation_url }}">Set your accommodation</a> to see the travel time to this event.{% endblocktranslate %}</p>
     {% endif %}
 
     {% if user.is_staff and user.id == event.organizer_id %}
-    <div class="event-actions">
-        <a class="edit-link" href="{% url 'events:event_edit' event.pk %}">✏️ Edit event</a>
-        <a class="delete-link" href="{% url 'events:event_delete' event.pk %}">🗑️ Delete event</a>
+    <div class="event-actions owner-actions">
+        <a class="secondary-button" href="{% url 'events:event_edit' event.pk %}">✏️ {% translate "Edit event" %}</a>
+        <a class="delete-link" href="{% url 'events:event_delete' event.pk %}">🗑️ {% translate "Delete event" %}</a>
     </div>
     {% endif %}
 </article>
@@ -65,27 +68,34 @@
 {% if event.latitude is not None and event.longitude is not None %}
 <section class="map-section">
     <div class="map-toolbar">
-        <h2>Route to event</h2>
-        <button type="button" id="event-map-toggle" class="edit-link">Full-screen map</button>
+        <h2>{% if transit_route %}{% translate "Route to the event" %}{% else %}{% translate "Event location" %}{% endif %}</h2>
+        <button type="button" id="event-map-toggle" class="secondary-button">{% translate "Full-screen map" %}</button>
     </div>
-    <div id="event-map" aria-label="Map showing the event location and route"></div>
+    <div id="event-map" aria-label="{% translate 'Map showing the event location and route' %}"></div>
     {% if transit_route %}
-    <p class="event-meta">🚌 Route from your accommodation: approximately {{ transit_route.distance_km }} km · {{ transit_route.duration_minutes }} min.</p>
     {% elif accommodation %}
-    <p class="event-meta">Route unavailable. Configure an <code>ORS_API_KEY</code> to calculate it.</p>
+    <p class="notice">{% translate "The route can't be calculated right now. Try again later." %}</p>
     {% else %}
-    <p class="event-meta"><a href="{% url 'navigation:accommodation_edit' %}">Set your accommodation</a> to see the route.</p>
+    <p class="notice">
+        {% if user.is_authenticated %}{% url 'navigation:accommodation_edit' as accommodation_url %}{% else %}{% url 'login' as login_url %}{% url 'navigation:accommodation_edit' as accommodation_next %}{% endif %}
+        {% if user.is_authenticated %}
+        {% blocktranslate %}<a href="{{ accommodation_url }}">Set your accommodation</a> to see the route to this event.{% endblocktranslate %}
+        {% else %}
+        {% blocktranslate %}<a href="{{ login_url }}?next={{ accommodation_next }}">Log in</a> and set your accommodation to see the route to this event.{% endblocktranslate %}
+        {% endif %}
+    </p>
     {% endif %}
 </section>
 {% endif %}
 
+{% translate "Link copied!" as link_copied %}
 <script>
     // REQ-18: share event link — copies the current page URL to the clipboard.
     document.getElementById("share-button").addEventListener("click", function () {
         const button = this;
         const originalLabel = button.textContent;
         navigator.clipboard.writeText(window.location.href).then(function () {
-            button.textContent = "✅ Link copied!";
+            button.textContent = "✅ {{ link_copied|escapejs }}";
             setTimeout(function () {
                 button.textContent = originalLabel;
             }, 1500);
@@ -96,22 +106,27 @@
 
 {% block extra_scripts %}
 {% if event.latitude is not None and event.longitude is not None %}
+{% translate "Your accommodation" as your_accommodation %}
+{% translate "Split view" as split_view %}
+{% translate "Full-screen map" as full_screen_map %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-{{ transit_route.coordinates|default:"[]"|json_script:"route-data" }}
+{% if transit_route %}{{ transit_route.coordinates|json_script:"route-data" }}{% endif %}
 <script>
-    const eventMap = L.map("event-map").setView([{{ event.latitude }}, {{ event.longitude }}], 14);
+    const eventMap = L.map("event-map").setView([{{ event.latitude|stringformat:"s" }}, {{ event.longitude|stringformat:"s" }}], 14);
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
         attribution: "Tiles &copy; Esri",
         maxZoom: 19
     }).addTo(eventMap);
-    L.marker([{{ event.latitude }}, {{ event.longitude }}]).addTo(eventMap)
+    L.marker([{{ event.latitude|stringformat:"s" }}, {{ event.longitude|stringformat:"s" }}]).addTo(eventMap)
         .bindPopup("<strong>{{ event.title|escapejs }}</strong><br>{{ event.location|escapejs }}")
         .openPopup();
     {% if accommodation %}
-    L.marker([{{ accommodation.latitude }}, {{ accommodation.longitude }}]).addTo(eventMap)
-        .bindPopup("Your accommodation");
+    L.marker([{{ accommodation.latitude|stringformat:"s" }}, {{ accommodation.longitude|stringformat:"s" }}]).addTo(eventMap)
+        .bindPopup("{{ your_accommodation|escapejs }}");
     {% endif %}
-    const routeCoordinates = JSON.parse(document.getElementById("route-data").textContent);
+    // No route (no accommodation or no ORS key) means no data block at all.
+    const routeData = document.getElementById("route-data");
+    const routeCoordinates = routeData ? JSON.parse(routeData.textContent) : [];
     if (routeCoordinates.length) {
         const routeLine = L.polyline(routeCoordinates, {color: "#ff5a5f", weight: 5}).addTo(eventMap);
         eventMap.fitBounds(routeLine.getBounds(), {padding: [24, 24]});
@@ -120,7 +135,7 @@
     document.getElementById("event-map-toggle").addEventListener("click", function () {
         mapSection.classList.toggle("map-fullscreen");
         this.textContent = mapSection.classList.contains("map-fullscreen")
-            ? "Split view" : "Full-screen map";
+            ? "{{ split_view|escapejs }}" : "{{ full_screen_map|escapejs }}";
         setTimeout(function () { eventMap.invalidateSize(); }, 0);
     });
 </script>

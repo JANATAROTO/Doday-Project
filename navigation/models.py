@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext as _
 
 
 class Accommodation(models.Model):
@@ -21,18 +22,20 @@ class Accommodation(models.Model):
         if self.latitude is None or self.longitude is None:
             return
         if not -90 <= self.latitude <= 90:
-            errors["latitude"] = "Latitude must be between -90 and 90."
+            errors["latitude"] = _("Latitude must be between -90 and 90.")
         if not -180 <= self.longitude <= 180:
-            errors["longitude"] = "Longitude must be between -180 and 180."
+            errors["longitude"] = _("Longitude must be between -180 and 180.")
 
         south, north, west, east = settings.ACCOMMODATION_ALLOWED_BOUNDS
         if not south <= self.latitude <= north:
             errors["latitude"] = (
-                f"Latitude must be within the allowed area ({south} to {north})."
+                _("Latitude must be within the allowed area (%(south)s to %(north)s).")
+                % {"south": south, "north": north}
             )
         if not west <= self.longitude <= east:
             errors["longitude"] = (
-                f"Longitude must be within the allowed area ({west} to {east})."
+                _("Longitude must be within the allowed area (%(west)s to %(east)s).")
+                % {"west": west, "east": east}
             )
 
         if errors:

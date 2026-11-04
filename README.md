@@ -64,6 +64,27 @@ componentes del Component Diagram (ver la Wiki, Entregable 2):
 - El listado de eventos incluye mapa Leaflet en vista dividida y un botón para
   cambiar a mapa de pantalla completa (REQ-27).
 
+## Idiomas (REQ-29)
+
+La interfaz está en inglés y en español. El botón **EN / ES** de la cabecera
+cambia el idioma (queda guardado en una cookie); en la primera visita se usa el
+idioma del navegador, así que un residente con el navegador en español ve la
+app en español y un visitante extranjero la ve en inglés.
+
+- Los textos del código y las plantillas se escriben en inglés con
+  `{% translate %}` / `gettext`, y la traducción al español está en
+  `locale/es/LC_MESSAGES/django.po`.
+- El archivo compilado `django.mo` está en el repositorio, así que no hace
+  falta instalar nada para ver la app en español.
+- Si agregas o cambias un texto: `python manage.py makemessages -l es`, traduce
+  el texto nuevo en el `.po` y luego `python manage.py compilemessages`. Estos
+  dos comandos necesitan GNU gettext instalado.
+- Las categorías tienen nombre en inglés y en español (`name_en`, `name_es`).
+  Las conocidas (Música, Sports, Teatro...) se llenan solas; las demás se
+  pueden traducir desde el admin.
+- Los precios se muestran en pesos sin decimales: `$85,000` en inglés y
+  `$85.000` en español.
+
 Correr las pruebas de todas las apps:
 
 - `python manage.py test`

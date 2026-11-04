@@ -1,19 +1,23 @@
 {% extends "events/base.html" %}
+{% load i18n %}
 
-{% block title %}{% if event %}Edit {{ event.title }}{% else %}Create event{% endif %} — Doday{% endblock %}
+{% block title %}{% if event %}{% blocktranslate with title=event.title %}Edit {{ title }}{% endblocktranslate %}{% else %}{% translate "Create event" %}{% endif %} — Doday{% endblock %}
 
 {% block content %}
 {% if event %}
-<a class="back-link" href="{% url 'events:event_detail' event.pk %}">← Back to event</a>
+<a class="back-link" href="{% url 'events:event_detail' event.pk %}">← {% translate "Back to event" %}</a>
 {% else %}
-<a class="back-link" href="{% url 'events:event_list' %}">← Back to events</a>
+<a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
 {% endif %}
 
-<h1>{% if event %}Edit event{% else %}Create event{% endif %}</h1>
+<h1>{% if event %}{% translate "Edit event" %}{% else %}{% translate "Create event" %}{% endif %}</h1>
 
-<form method="post" class="auth-form">
+<form method="post" class="auth-form form-card form-wide">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">{% if event %}Save changes{% else %}Create event{% endif %}</button>
+    {{ form.as_div }}
+    <div class="form-actions">
+        <button type="submit">{% if event %}{% translate "Save changes" %}{% else %}{% translate "Create event" %}{% endif %}</button>
+        <a class="secondary-button" href="{% if event %}{% url 'events:event_detail' event.pk %}{% else %}{% url 'events:event_list' %}{% endif %}">{% translate "Cancel" %}</a>
+    </div>
 </form>
 {% endblock %}
