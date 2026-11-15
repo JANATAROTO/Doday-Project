@@ -9,6 +9,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from analytics.models import EventInteraction
+from doday.ratelimit import rate_limit
 from analytics.services import record as record_interaction
 from navigation.services import get_transit_route
 from search.forms import EventFilterForm
@@ -24,8 +25,18 @@ def _get_favorite_ids(request):
     return request.session.get("favorite_ids", [])
 
 
+def _is_bot(request):
+    """Honeypot: the "website" field is hidden from people, so only automated
+    form fillers complete it. The caller answers as if everything went fine,
+    giving the bot no hint to adapt to."""
+    return bool(request.POST.get("website"))
+
+
+@rate_limit("signup", limit=10, window=3600)
 def signup(request):
     if request.method == "POST":
+        if _is_bot(request):
+            return redirect("events:event_list")
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save()
@@ -180,10 +191,16 @@ def event_delete(request, pk):
     return render(request, "events/event_confirm_delete.html", {"event": event})
 
 
+@rate_limit("event_submit", limit=10, window=3600)
 def event_submit(request):
     """REQ-24: public form to propose an event. No account is needed; the
     proposal stays hidden as pending until staff approve it (REQ-25)."""
     if request.method == "POST":
+        if _is_bot(request):
+            # Same confirmation page a person would see, but nothing is saved.
+            return render(
+                request, "events/event_submit_done.html", {"event": {"title": request.POST.get("title", "")}}
+            )
         form = EventSubmissionForm(request.POST)
         if form.is_valid():
             event = form.save(commit=False)

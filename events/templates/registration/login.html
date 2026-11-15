@@ -13,6 +13,7 @@
     <div class="form-actions">
         <button type="submit">{% translate "Log in" %}</button>
     </div>
-    <p class="form-footer"><a href="{% url 'signup' %}">{% translate "Don't have an account? Sign up" %}</a></p>
+    <p class="form-footer"><a href="{% url 'password_reset' %}">{% translate "Forgot your password?" %}</a></p>
+    <p class="form-footer form-footer-tight"><a href="{% url 'signup' %}">{% translate "Don't have an account? Sign up" %}</a></p>
 </form>
 {% endblock %}

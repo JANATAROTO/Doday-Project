@@ -11,7 +11,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,7 +48,17 @@ def _load_api_keys(filename="api_key.env"):
             os.environ[key] = value
 
 
+# `.env` is the standard name; `api_key.env` is kept for existing setups.
+_load_api_keys(".env")
 _load_api_keys()
+
+
+def _env_bool(name, default=False):
+    """Environment flag: "1", "true", "yes" or "on" (any case) mean True."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
 
 
 def _decimal_bounds(value, default):
@@ -57,20 +70,26 @@ def _decimal_bounds(value, default):
     return bounds if len(bounds) == 4 else default
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+# Secure by default: DEBUG is off unless DJANGO_DEBUG=True is set (in `.env`
+# for local development). Production never needs to remember to turn it off.
+DEBUG = _env_bool('DJANGO_DEBUG', default=False)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# SECURITY: in production, set the DJANGO_SECRET_KEY environment variable
-# instead of relying on this hardcoded development fallback.
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-&pr^k+3@d7*q+df=_)!p1ct72a#)7t^3a29#gnz3pa*$_e3!=b',
-)
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-
+# The key signs sessions and password-reset links. Production must provide its
+# own; only local development (DEBUG) and the test runner may fall back to a
+# throwaway key, so a missing key can never silently reach a real deployment.
+_RUNNING_TESTS = len(sys.argv) > 1 and sys.argv[1] == 'test'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if DEBUG or _RUNNING_TESTS:
+        SECRET_KEY = 'dev-only-insecure-key-do-not-use-in-production'
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is not set. For local development copy "
+            ".env.example to .env (it sets DJANGO_DEBUG=True). In production "
+            "set DJANGO_SECRET_KEY to a long random value: python -c \"from "
+            "django.core.management.utils import get_random_secret_key as k; "
+            "print(k())\""
+        )
 
 
 def _env_list(name):
@@ -88,6 +107,25 @@ ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
 # Only needed when the site is served over HTTPS or behind a proxy, e.g.
 #   DJANGO_CSRF_TRUSTED_ORIGINS=https://doday.example.com
 CSRF_TRUSTED_ORIGINS = _env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+
+# HTTPS hardening, switched on with DJANGO_HTTPS=True once the site is served
+# over TLS (kept off by default so plain-HTTP local development still works).
+if _env_bool('DJANGO_HTTPS'):
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Hosting platforms terminate TLS at a proxy and forward this header.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Number of trusted reverse proxies in front of Django (0 = none). Used to read
+# the visitor's real IP for rate limiting; see doday/ratelimit.py.
+TRUSTED_PROXY_COUNT = int(os.environ.get('DJANGO_TRUSTED_PROXY_COUNT', '0') or 0)
+
+# The test suite posts to the same forms many times from one address; the
+# rate-limit tests switch this back on for themselves.
+RATELIMIT_ENABLED = not _RUNNING_TESTS
 
 
 # Application definition
@@ -197,6 +235,19 @@ USE_TZ = True
 
 
 LOGIN_URL = 'login'
+
+# Email (password reset). Without EMAIL_HOST the messages are printed to the
+# server console, which is enough for local development.
+if os.environ.get('EMAIL_HOST'):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.environ['EMAIL_HOST']
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', default=True)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Doday <no-reply@doday.local>')
 LOGIN_REDIRECT_URL = 'events:event_list'
 LOGOUT_REDIRECT_URL = 'events:event_list'
 

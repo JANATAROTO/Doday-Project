@@ -1,0 +1,14 @@
+{% extends "events/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Too many attempts" %} — Doday{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h1>{% translate "Too many attempts" %}</h1>
+    <p>{% translate "You have tried this too many times in a short period. Please wait a few minutes and try again." %}</p>
+    <div class="form-actions">
+        <a class="edit-link" href="{% url 'events:event_list' %}">{% translate "Back to events" %}</a>
+    </div>
+</div>
+{% endblock %}

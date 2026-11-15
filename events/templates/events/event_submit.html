@@ -13,6 +13,11 @@
 <form method="post" class="auth-form form-card form-wide">
     {% csrf_token %}
     {{ form.as_div }}
+    {# Honeypot: hidden from people, filled in by bots (see events.views._is_bot). #}
+    <div class="hp-field" aria-hidden="true">
+        <label for="id_website">Website</label>
+        <input type="text" name="website" id="id_website" tabindex="-1" autocomplete="off">
+    </div>
     <div class="form-actions">
         <button type="submit">{% translate "Send proposal" %}</button>
         <a class="secondary-button" href="{% url 'events:event_list' %}">{% translate "Cancel" %}</a>
