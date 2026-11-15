@@ -1244,3 +1244,16 @@ a.bar-label:hover {
     height: 100%;
     background: #15803d;
 }
+
+/* Honeypot field against spam bots: off-screen for people, visible to bots. */
+.hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.form-footer-tight {
+    margin-top: 0.4rem !important;
+}

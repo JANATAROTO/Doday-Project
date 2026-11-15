@@ -13,22 +13,23 @@
 3. instalar las dependencias:
    - `pip install -r requirements.txt`
 
-4. (opcional) variables de entorno — si no se definen, el proyecto corre igual
-   con valores de desarrollo por defecto:
-   - `DJANGO_SECRET_KEY`: clave secreta para producción.
-   - `DJANGO_DEBUG`: `True`/`False` (por defecto `True`).
-   - `GOOGLE_MAPS_API_KEY`: habilita el mapa interactivo de eventos (REQ-09/
-     REQ-10, Navigation, Maps JavaScript API). Sin ella, la página `/map/`
-     muestra un aviso en vez del mapa. Necesita la "Maps JavaScript API"
-     habilitada en Google Cloud Console.
-   - `ORS_API_KEY`: habilita el cálculo de distancia/tiempo de tránsito al
-     evento (REQ-01/REQ-03, Navigation, OpenRouteService). Sin ella, ese dato
-     simplemente no se muestra. Es un proveedor distinto a Google Maps.
-   - `TICKETMASTER_API_KEY`: habilita la sincronización de eventos externos
-     (REQ-13).
+4. crear el archivo de configuración local (no se sube al repositorio):
+   - Windows: `copy .env.example .env`
+   - Linux/macOS: `cp .env.example .env`
+
+   El archivo `.env` ya trae `DJANGO_DEBUG=True`, que es lo único necesario
+   para correr en local. Sin ese archivo el proyecto no arranca: por seguridad
+   `DEBUG` viene apagado y exige una `DJANGO_SECRET_KEY`. Las demás variables
+   son opcionales y están explicadas en `.env.example`:
+   - `GOOGLE_MAPS_API_KEY`: mapa interactivo de eventos (Maps JavaScript API).
+     Sin ella, `/map/` muestra un aviso en vez del mapa. La llave debe estar
+     restringida a los sitios donde corre la app.
+   - `ORS_API_KEY`: distancia, tiempo y ruta al evento (OpenRouteService).
+   - `TICKETMASTER_API_KEY`: sincronización de eventos externos.
    - `ACCOMMODATION_ALLOWED_BOUNDS`: frontera `sur,norte,oeste,este` para
-     validar alojamientos (REQ-26). Por defecto usa una caja aproximada de
-     Medellín: `6.10,6.40,-75.70,-75.45`.
+     validar alojamientos. Por defecto, una caja aproximada de Medellín.
+   - `EMAIL_HOST` y relacionadas: envío de correos (recuperar contraseña).
+     Sin ellas, los correos se imprimen en la consola del servidor.
 
 5. migraciones de la base de datos:
    - `python manage.py migrate`
@@ -59,7 +60,7 @@ Pasos para poner en el servidor la última versión de `main`:
 
    ```
    DJANGO_ALLOWED_HOSTS=<IP-publica>,localhost,127.0.0.1
-   DJANGO_SECRET_KEY=<una clave larga y secreta>
+   DJANGO_SECRET_KEY=<una clave larga y secreta>   # obligatoria en producción
    GOOGLE_MAPS_API_KEY=...
    ORS_API_KEY=...
    TICKETMASTER_API_KEY=...
@@ -137,6 +138,25 @@ Correr las pruebas de todas las apps:
 
 - `python manage.py test`
 
-Super usuarios:
-usuario: Sebas. contraseña: 123456789.
-usuario: maria. contraseña: 123456789.
+Cada push y cada Pull Request corre estas mismas pruebas en GitHub Actions
+(`.github/workflows/ci.yml`).
+
+## Seguridad
+
+- **Secretos:** las llaves y contraseñas van en `.env` (o en las variables de
+  entorno del servidor), nunca en el repositorio. `.env.example` lista las
+  variables sin valores.
+- **Usuarios administradores:** se crean con `python manage.py createsuperuser`.
+  No hay usuarios ni contraseñas por defecto. `seed_events` crea los
+  organizadores de ejemplo sin contraseña (no pueden iniciar sesión) y, si
+  encuentra los que versiones anteriores creaban con una contraseña conocida,
+  les quita la contraseña y el acceso de administrador.
+- **Producción:** `DEBUG` está apagado por defecto y el proyecto no arranca sin
+  `DJANGO_SECRET_KEY`. Con `DJANGO_HTTPS=True` se activan las cookies seguras,
+  HSTS y la redirección a HTTPS.
+- **Formularios públicos:** el inicio de sesión, el registro, la propuesta de
+  eventos y la recuperación de contraseña tienen límite de intentos por IP
+  (`doday/ratelimit.py`); el registro y la propuesta tienen además un campo
+  trampa contra bots.
+- **Recuperar contraseña:** enlace "¿Olvidaste tu contraseña?" en el inicio de
+  sesión; el enlace llega por correo y vence solo.

@@ -77,29 +77,36 @@ SAMPLE_EVENTS = [
     },
 ]
 
-DEMO_ORGANIZERS = {
-    "maria": "123456789",
-    "sebas": "123456789",
-}
+# Demo organizers only own the sample events; nobody logs in as them.
+DEMO_ORGANIZERS = ("maria", "sebas")
+
+# Earlier versions of this command created the demo organizers as staff with
+# this well-known password. Databases seeded back then are repaired below.
+_LEGACY_DEMO_PASSWORD = "123456789"
 
 
 class Command(BaseCommand):
-    help = "Seed the database with sample events and organizers for RF2/RF5 demo purposes."
+    help = "Seed the database with sample events (owned by demo organizers that cannot log in)."
 
     def handle(self, *args, **options):
         User = get_user_model()
         now = timezone.now().replace(hour=19, minute=0, second=0, microsecond=0)
 
-        for username, password in DEMO_ORGANIZERS.items():
+        for username in DEMO_ORGANIZERS:
             user, created = User.objects.get_or_create(username=username)
             if created:
-                user.set_password(password)
+                # No password at all: the account cannot be used to log in.
+                user.set_unusable_password()
+                user.save()
                 self.stdout.write(self.style.SUCCESS(f"organizer created: {username}"))
-            if not user.is_staff:
-                # Only admin (is_staff) users can create/manage events.
-                user.is_staff = True
-                self.stdout.write(self.style.SUCCESS(f"promoted to admin: {username}"))
-            user.save()
+            elif user.check_password(_LEGACY_DEMO_PASSWORD):
+                user.set_unusable_password()
+                user.is_staff = False
+                user.is_superuser = False
+                user.save()
+                self.stdout.write(
+                    self.style.WARNING(f"{username}: default password removed and admin access revoked")
+                )
 
         for data in SAMPLE_EVENTS:
             category, _ = Category.objects.get_or_create(name=data["category"])

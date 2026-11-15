@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Doday\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-04 16:51-0500\n"
+"POT-Creation-Date: 2026-11-15 02:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doday team\n"
 "Language-Team: Doday <>\n"
@@ -71,7 +71,7 @@ msgstr "%(free)s de %(total)s próximos eventos son gratis (%(rate)s%%)."
 msgid "Analytics"
 msgstr "Analítica"
 
-#: analytics/templates/analytics/dashboard.html:7
+#: analytics/templates/analytics/dashboard.html:7 events/templates/429.html:11
 #: events/templates/events/event_detail.html:11
 #: events/templates/events/event_form.html:10
 #: events/templates/events/event_submit.html:7
@@ -171,9 +171,6 @@ msgstr ""
 
 #: analytics/templates/analytics/dashboard.html:67
 #, python-format
-#| msgid ""
-#| "%(events)s published events · %(per_event)s interest per event · %(rate)s%% "
-#| "ticket clicks"
 msgid ""
 "%(events)s published event · %(per_event)s interest per event · %(rate)s%% "
 "ticket clicks"
@@ -338,6 +335,122 @@ msgstr "Gratis"
 msgid "Price not available"
 msgstr "Precio no disponible"
 
+#: events/templates/429.html:4 events/templates/429.html:8
+msgid "Too many attempts"
+msgstr "Demasiados intentos"
+
+#: events/templates/429.html:9
+msgid ""
+"You have tried this too many times in a short period. Please wait a few "
+"minutes and try again."
+msgstr ""
+"Lo intentaste demasiadas veces en poco tiempo. Espera unos minutos y vuelve "
+"a intentarlo."
+
+#: events/templates/accounts/password_reset_complete.html:4
+#: events/templates/accounts/password_reset_complete.html:8
+msgid "Password updated"
+msgstr "Contraseña actualizada"
+
+#: events/templates/accounts/password_reset_complete.html:9
+msgid "Your password was changed. You can log in with the new one now."
+msgstr "Tu contraseña se cambió. Ya puedes iniciar sesión con la nueva."
+
+#: events/templates/accounts/password_reset_complete.html:11
+#: events/templates/events/base.html:31
+#: events/templates/registration/login.html:4
+#: events/templates/registration/login.html:7
+#: events/templates/registration/login.html:14
+msgid "Log in"
+msgstr "Iniciar sesión"
+
+#: events/templates/accounts/password_reset_confirm.html:4
+#: events/templates/accounts/password_reset_confirm.html:8
+msgid "Choose a new password"
+msgstr "Elige una contraseña nueva"
+
+#: events/templates/accounts/password_reset_confirm.html:14
+msgid "Save password"
+msgstr "Guardar contraseña"
+
+#: events/templates/accounts/password_reset_confirm.html:19
+msgid "This link is no longer valid"
+msgstr "Este enlace ya no es válido"
+
+#: events/templates/accounts/password_reset_confirm.html:20
+msgid "The link was already used or has expired. Request a new one."
+msgstr "El enlace ya se usó o venció. Solicita uno nuevo."
+
+#: events/templates/accounts/password_reset_confirm.html:22
+msgid "Request a new link"
+msgstr "Solicitar un enlace nuevo"
+
+#: events/templates/accounts/password_reset_done.html:4
+#: events/templates/accounts/password_reset_done.html:8
+msgid "Check your email"
+msgstr "Revisa tu correo"
+
+#: events/templates/accounts/password_reset_done.html:10
+msgid ""
+"If there is an account with that email, we sent a link to reset the "
+"password. It can take a few minutes; check your spam folder too."
+msgstr ""
+"Si existe una cuenta con ese correo, enviamos un enlace para restablecer la "
+"contraseña. Puede tardar unos minutos; revisa también la carpeta de spam."
+
+#: events/templates/accounts/password_reset_done.html:12
+#: events/templates/accounts/password_reset_form.html:7
+#| msgid "Back to event"
+msgid "Back to log in"
+msgstr "Volver a iniciar sesión"
+
+#: events/templates/accounts/password_reset_email.txt:1
+msgid "Hello,"
+msgstr "Hola:"
+
+#: events/templates/accounts/password_reset_email.txt:3
+msgid ""
+"Someone asked to reset the password of the Doday account for this email. To "
+"choose a new password, open this link:"
+msgstr ""
+"Alguien pidió restablecer la contraseña de la cuenta de Doday de este "
+"correo. Para elegir una contraseña nueva, abre este enlace:"
+
+#: events/templates/accounts/password_reset_email.txt:7
+msgid ""
+"If it was not you, ignore this message and your password will stay the same."
+msgstr "Si no fuiste tú, ignora este mensaje y tu contraseña seguirá igual."
+
+#: events/templates/accounts/password_reset_form.html:4
+#: events/templates/accounts/password_reset_form.html:9
+msgid "Reset your password"
+msgstr "Restablecer tu contraseña"
+
+#: events/templates/accounts/password_reset_form.html:10
+msgid ""
+"Enter the email of your account and we will send you a link to choose a new "
+"password."
+msgstr ""
+"Escribe el correo de tu cuenta y te enviaremos un enlace para elegir una "
+"contraseña nueva."
+
+#: events/templates/accounts/password_reset_form.html:16
+#| msgid "Ticket link"
+msgid "Send link"
+msgstr "Enviar enlace"
+
+#: events/templates/accounts/password_reset_form.html:17
+#: events/templates/events/event_confirm_delete.html:16
+#: events/templates/events/event_form.html:20
+#: events/templates/events/event_submit.html:23
+#: navigation/templates/navigation/accommodation_form.html:20
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: events/templates/accounts/password_reset_subject.txt:1
+msgid "Reset your Doday password"
+msgstr "Restablece tu contraseña de Doday"
+
 #: events/templates/events/base.html:17
 msgid "Find events in Medellín"
 msgstr "Encuentra eventos en Medellín"
@@ -370,16 +483,9 @@ msgstr "Hola, %(name)s"
 msgid "Log out"
 msgstr "Cerrar sesión"
 
-#: events/templates/events/base.html:31
-#: events/templates/registration/login.html:4
-#: events/templates/registration/login.html:7
-#: events/templates/registration/login.html:14
-msgid "Log in"
-msgstr "Iniciar sesión"
-
 #: events/templates/events/base.html:32
 #: events/templates/registration/signup.html:4
-#: events/templates/registration/signup.html:13
+#: events/templates/registration/signup.html:18
 msgid "Sign up"
 msgstr "Registrarse"
 
@@ -415,13 +521,6 @@ msgid ""
 msgstr ""
 "¿Seguro que quieres eliminar <strong>%(title)s</strong>? Esta acción no se "
 "puede deshacer."
-
-#: events/templates/events/event_confirm_delete.html:16
-#: events/templates/events/event_form.html:20
-#: events/templates/events/event_submit.html:18
-#: navigation/templates/navigation/accommodation_form.html:20
-msgid "Cancel"
-msgstr "Cancelar"
 
 #: events/templates/events/event_detail.html:16
 #, python-format
@@ -612,7 +711,7 @@ msgstr ""
 "¿Estás organizando algo en Medellín? Cuéntanos. Nuestro equipo revisa cada "
 "propuesta antes de publicarla."
 
-#: events/templates/events/event_submit.html:17
+#: events/templates/events/event_submit.html:22
 msgid "Send proposal"
 msgstr "Enviar propuesta"
 
@@ -685,6 +784,10 @@ msgid "Latest decisions"
 msgstr "Últimas decisiones"
 
 #: events/templates/registration/login.html:16
+msgid "Forgot your password?"
+msgstr "¿Olvidaste tu contraseña?"
+
+#: events/templates/registration/login.html:17
 msgid "Don't have an account? Sign up"
 msgstr "¿No tienes cuenta? Regístrate"
 
@@ -692,37 +795,37 @@ msgstr "¿No tienes cuenta? Regístrate"
 msgid "Create your account"
 msgstr "Crea tu cuenta"
 
-#: events/templates/registration/signup.html:15
+#: events/templates/registration/signup.html:20
 msgid "Already have an account? Log in"
 msgstr "¿Ya tienes cuenta? Inicia sesión"
 
-#: events/views.py:136
+#: events/views.py:147
 msgid "Only admin users can create events."
 msgstr "Solo los administradores pueden crear eventos."
 
-#: events/views.py:156
+#: events/views.py:167
 msgid "Only the admin user who organizes this event can edit it."
 msgstr "Solo el administrador que organiza este evento puede editarlo."
 
-#: events/views.py:174
+#: events/views.py:185
 msgid "Only the admin user who organizes this event can delete it."
 msgstr "Solo el administrador que organiza este evento puede eliminarlo."
 
-#: events/views.py:205
+#: events/views.py:222
 msgid "Only admin users can moderate events."
 msgstr "Solo los administradores pueden moderar eventos."
 
-#: events/views.py:233
+#: events/views.py:250
 #, python-format
 msgid "“%(title)s” is now published."
 msgstr "«%(title)s» ya está publicado."
 
-#: events/views.py:236
+#: events/views.py:253
 #, python-format
 msgid "“%(title)s” was rejected and stays hidden."
 msgstr "«%(title)s» fue rechazado y sigue oculto."
 
-#: events/views.py:238
+#: events/views.py:255
 msgid "Unknown moderation decision."
 msgstr "Decisión de moderación desconocida."
 
