@@ -4,8 +4,9 @@
 
 Run it after filling in `.env` (or the server's environment variables) to see
 whether each key is in place and actually accepted. It makes one real request
-to the Geocoding API and one to the Routes API (two billable calls, far inside
-the monthly free allowance); pass --offline to only look at the configuration.
+to the Geocoding API, one to the Routes API (two billable calls, far inside
+the monthly free allowance) and one to Ticketmaster; pass --offline to only
+look at the configuration.
 
 Nothing secret is printed: keys are shown as "set" or "missing".
 """
@@ -14,6 +15,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+from events.services import ticketmaster_sync
 from navigation import services
 
 # Parque Lleras -> Plaza Botero, two well-known points inside the service area.
@@ -27,7 +29,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--offline", action="store_true",
-            help="Only inspect the configuration; make no request to Google.",
+            help="Only inspect the configuration; make no request to Google or Ticketmaster.",
         )
 
     def handle(self, *args, offline, **options):
@@ -37,8 +39,7 @@ class Command(BaseCommand):
         self._cache()
         self._browser_key()
         self._server_key(offline)
-        self._optional("Ticketmaster (external event import)", settings.TICKETMASTER_API_KEY,
-                       "TICKETMASTER_API_KEY is not set: the import command does nothing. Optional.")
+        self._ticketmaster(offline)
         self._email()
         self._optional("Sentry (error reports)", getattr(settings, "SENTRY_DSN", ""),
                        "SENTRY_DSN is not set: errors only appear in the server log. Optional.")
@@ -135,6 +136,16 @@ class Command(BaseCommand):
                 "the test route failed; the line above this one says why. Usual cause: the Routes API "
                 "is not enabled in the Google Cloud project or not allowed for this key.",
             )
+
+    def _ticketmaster(self, offline):
+        label = "Ticketmaster (import of real events)"
+        if not settings.TICKETMASTER_API_KEY:
+            self._info(label, "TICKETMASTER_API_KEY is not set: nothing is imported. Optional.")
+        elif offline:
+            self._ok(label, "set (not tested: --offline)")
+        else:
+            works, message = ticketmaster_sync.probe()
+            (self._ok if works else self._problem)(label, message)
 
     def _email(self):
         if settings.EMAIL_BACKEND.endswith("smtp.EmailBackend"):

@@ -24,7 +24,7 @@ Necesitas Python 3.12 o superior.
    Sin ese archivo el proyecto no arranca: por seguridad `DEBUG` viene apagado
    y exige una `DJANGO_SECRET_KEY`.
 5. Crear la base de datos: `python manage.py migrate`
-6. Opcional, datos de ejemplo: `python manage.py seed_events`
+6. Opcional, eventos ficticios para probar: `python manage.py seed_events`
 7. Crear tu usuario administrador: `python manage.py createsuperuser`
 8. Lanzar el servidor: `python manage.py runserver` y abrir http://127.0.0.1:8000/
 
@@ -49,7 +49,7 @@ explicación. Las principales:
 | `DJANGO_HTTPS` | `True` cuando el sitio se sirve por HTTPS. |
 | `EMAIL_HOST` y relacionadas | Correo para recuperar contraseña. |
 | `SENTRY_DSN` | Opcional: reporte de errores a Sentry. |
-| `TICKETMASTER_API_KEY` | Opcional: importar eventos de Ticketmaster. |
+| `TICKETMASTER_API_KEY` | Importar eventos reales de Ticketmaster (gratis). |
 
 Para revisar qué está configurado y si funciona:
 
@@ -101,6 +101,32 @@ muestran sobre un mapa de Google, y las coordenadas que devuelve se guardan
 máximo 30 días (`python manage.py refresh_geocodes` las renueva; se programa
 una vez al día).
 
+## Eventos reales
+
+El catálogo se llena de tres formas, todas con eventos reales:
+
+- **Ticketmaster.** `python manage.py sync_external_events` trae los próximos
+  eventos en un radio de 40 km alrededor de la zona de servicio. Necesita
+  `TICKETMASTER_API_KEY`: es gratis, se obtiene creando una cuenta en
+  [developer.ticketmaster.com](https://developer.ticketmaster.com) (es la
+  *Consumer Key* de la app que se crea sola) y permite 5.000 consultas al día.
+  Se puede repetir cuantas veces se quiera: actualiza los eventos, no los
+  duplica.
+- **A mano.** Un administrador crea eventos con el botón *Crear evento*.
+- **Propuestas.** Cualquier persona propone un evento en *Proponer un evento*
+  y un administrador lo aprueba en *Moderación*.
+
+En producción la importación corre sola todos los días con GitHub Actions
+(`.github/workflows/sync-events.yml`). Se enciende agregando dos secretos en
+GitHub (*Settings → Secrets and variables → Actions*): `DATABASE_URL` (la
+cadena de Neon) y `TICKETMASTER_API_KEY`. Con `GOOGLE_MAPS_SERVER_KEY` como
+tercer secreto, el mismo trabajo renueva las coordenadas de Google que están
+por cumplir 30 días. También se puede lanzar a mano: *Actions → Importar
+eventos → Run workflow*.
+
+`seed_events` carga eventos **ficticios** y solo sirve para desarrollo o demos;
+no se usa en producción.
+
 ## Despliegue (Render + Neon)
 
 La aplicación corre en [Render](https://render.com) y la base de datos en
@@ -150,9 +176,9 @@ en la base para que todos los procesos los compartan.
 | --- | --- |
 | `python manage.py test` | Corre todas las pruebas. |
 | `python manage.py check_integrations` | Revisa base de datos, llaves, correo y seguridad. |
-| `python manage.py seed_events` | Carga eventos de ejemplo (solo para desarrollo o demos). |
+| `python manage.py seed_events` | Carga eventos ficticios (solo para desarrollo o demos). |
 | `python manage.py refresh_geocodes` | Renueva coordenadas de Google con casi 30 días. |
-| `python manage.py sync_external_events --city "Medellín"` | Importa eventos de Ticketmaster (requiere su llave). |
+| `python manage.py sync_external_events` | Importa eventos reales de Ticketmaster (requiere su llave). |
 | `python manage.py generate_demo_interactions --days 30` | Llena la analítica con datos simulados (solo demos). |
 
 ## Estructura del proyecto

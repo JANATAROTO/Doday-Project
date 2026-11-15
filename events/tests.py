@@ -511,6 +511,19 @@ class CommunitySubmissionTests(TestCase):
 
 
 class CheckIntegrationsTests(TestCase):
+    @override_settings(TICKETMASTER_API_KEY="tm-key")
+    @patch("events.services.ticketmaster_sync.probe", return_value=(True, "key accepted; 37 upcoming event(s)"))
+    def test_ticketmaster_key_is_tried_for_real(self, mock_probe):
+        output = self._run()
+        self.assertIn("ok  Ticketmaster (import of real events): key accepted; 37 upcoming event(s)", output)
+        self.assertNotIn("tm-key", output)
+
+    @override_settings(TICKETMASTER_API_KEY="tm-key")
+    @patch("events.services.ticketmaster_sync.probe")
+    def test_ticketmaster_is_not_called_offline(self, mock_probe):
+        self._run("--offline")
+        mock_probe.assert_not_called()
+
     def _run(self, *args):
         out = StringIO()
         call_command("check_integrations", *args, stdout=out, no_color=True)
