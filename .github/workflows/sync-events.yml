@@ -1,0 +1,61 @@
+name: Importar eventos
+
+# Brings real events from Ticketmaster into the production database once a day,
+# and renews the Google coordinates that are about to turn 30 days old.
+# It can also be started by hand: Actions > Importar eventos > Run workflow.
+#
+# It stays switched off (and green) until these repository secrets exist
+# (Settings > Secrets and variables > Actions):
+#   DATABASE_URL            the production database (Neon connection string)
+#   TICKETMASTER_API_KEY    the Consumer Key from developer.ticketmaster.com
+#   GOOGLE_MAPS_SERVER_KEY  optional; only for the coordinate renewal
+
+on:
+  schedule:
+    - cron: "17 9 * * *" # every day at 4:17 a.m. in Colombia
+  workflow_dispatch:
+    inputs:
+      size:
+        description: "Máximo de eventos a traer"
+        default: "200"
+
+permissions:
+  contents: read
+
+concurrency: sync-events
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      # manage.py needs a key to start; these commands sign nothing with it.
+      DJANGO_SECRET_KEY: scheduled-job-only-not-used-for-sessions
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+      GOOGLE_MAPS_SERVER_KEY: ${{ secrets.GOOGLE_MAPS_SERVER_KEY }}
+    steps:
+      - name: Check that the secrets exist
+        id: config
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$TICKETMASTER_API_KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nothing imported: add the secrets DATABASE_URL and TICKETMASTER_API_KEY to switch this on."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.config.outputs.ready == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.config.outputs.ready == 'true'
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - name: Install dependencies
+        if: steps.config.outputs.ready == 'true'
+        run: pip install -r requirements.txt
+      - name: Import events from Ticketmaster
+        if: steps.config.outputs.ready == 'true'
+        run: python manage.py sync_external_events --size "${{ inputs.size || '200' }}"
+      - name: Renew Google coordinates close to 30 days old
+        if: steps.config.outputs.ready == 'true' && env.GOOGLE_MAPS_SERVER_KEY != ''
+        run: python manage.py refresh_geocodes

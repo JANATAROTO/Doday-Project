@@ -303,10 +303,14 @@ LOGOUT_REDIRECT_URL = 'events:event_list'
 # server calls.
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
 GOOGLE_MAPS_SERVER_KEY = os.environ.get('GOOGLE_MAPS_SERVER_KEY', '')
-# REQ-13: Ticketmaster Discovery API key
-# Set the TICKETMASTER_API_KEY environment variable to enable event sync.
-# Without it, sync_ticketmaster_events() returns [] silently.
+# Ticketmaster Discovery API key (the "Consumer Key" of the app created at
+# developer.ticketmaster.com). Free. Without it no external event is imported.
 TICKETMASTER_API_KEY = os.environ.get('TICKETMASTER_API_KEY', '')
+
+# The test suite must never spend real quota or depend on the network, even on
+# a computer whose .env holds working keys; tests set the keys they need.
+if _RUNNING_TESTS:
+    GOOGLE_MAPS_API_KEY = GOOGLE_MAPS_SERVER_KEY = TICKETMASTER_API_KEY = ''
 
 # REQ-26: configurable city boundary for accommodation coordinates.
 # Medellín's approximate urban bounding box is used for local development.

@@ -1,41 +1,47 @@
-"""REQ-13: management command to run the external API sync.
-
-Meant to be run periodically (cron, django-crontab, etc.) — see README for
-the chosen scheduling mechanism — but can also be run manually the same way
-seed_events is:
+"""Import real events from external sources (today: Ticketmaster).
 
     python manage.py sync_external_events
+    python manage.py sync_external_events --size 500
     python manage.py sync_external_events --city "Bogotá"
-"""
-from django.core.management.base import BaseCommand
 
-from events.services.ticketmaster_sync import sync_ticketmaster_events
+By default it brings the upcoming events around the service area (Medellín
+and the valley). Safe to run as often as wanted: events are updated in place,
+never duplicated. Needs TICKETMASTER_API_KEY.
+"""
+from django.core.management.base import BaseCommand, CommandError
+
+from events.services.ticketmaster_sync import RADIUS_KM, sync_ticketmaster_events
 
 
 class Command(BaseCommand):
-    help = "REQ-13: sync events from external APIs (Ticketmaster) into the local DB."
+    help = "Import upcoming events from Ticketmaster into the catalogue."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--city",
-            default="Medellín",
-            help="City to query the external API for (default: Medellín).",
+            "--city", default=None,
+            help="Search by city name instead of around the service area (e.g. \"Bogotá\").",
         )
         parser.add_argument(
-            "--size",
-            type=int,
-            default=50,
-            help="Maximum number of events to fetch per run (default: 50).",
+            "--size", type=int, default=200,
+            help="Most events to bring in one run (default 200, at most 1000).",
         )
 
-    def handle(self, *args, **options):
-        city = options["city"]
-        self.stdout.write(f"Syncing Ticketmaster events for city={city}...")
+    def handle(self, *args, city, size, **options):
+        where = f'city "{city}"' if city else f"{RADIUS_KM} km around the service area"
+        self.stdout.write(f"Asking Ticketmaster for upcoming events ({where})...")
 
-        created, updated = sync_ticketmaster_events(city=city, size=options["size"])
+        result = sync_ticketmaster_events(city=city, size=size)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Ticketmaster sync complete: {created} created, {updated} updated."
-            )
-        )
+        if result.problem:
+            raise CommandError(result.problem)
+
+        self.stdout.write(f"Ticketmaster has {result.available} upcoming event(s) for this search.")
+        self.stdout.write(self.style.SUCCESS(
+            f"Imported: {result.created} new, {result.updated} updated, {result.skipped} skipped "
+            "(no confirmed date, or cancelled)."
+        ))
+        if result.available == 0:
+            self.stdout.write(self.style.WARNING(
+                "Ticketmaster has nothing listed here right now. The key works; there is simply "
+                "no event on sale in this area through this API today."
+            ))
