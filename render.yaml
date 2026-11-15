@@ -1,0 +1,40 @@
+# Render blueprint: describes the web service so it can be created in one step
+# (Render dashboard > New > Blueprint > pick this repository).
+#
+# The database is not declared here on purpose: it lives in Neon (neon.tech),
+# whose free plan does not expire. Paste its connection string as DATABASE_URL
+# when Render asks for it. See "Despliegue" in the README.
+services:
+  - type: web
+    name: doday
+    runtime: python
+    plan: free
+    region: virginia
+    buildCommand: ./build.sh
+    # 2 processes x 4 threads fits the 512 MB instance. Access logs go to the
+    # console, where Render keeps them.
+    startCommand: gunicorn doday.wsgi:application --workers 2 --threads 4 --timeout 60 --access-logfile -
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Generated once by Render and kept secret.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      # Render serves every site over HTTPS.
+      - key: DJANGO_HTTPS
+        value: "True"
+      # Render's edge (Cloudflare) writes the visitor's real IP in this header;
+      # the rate limiter counts per visitor with it.
+      - key: DJANGO_CLIENT_IP_HEADER
+        value: CF-Connecting-IP
+      # `sync: false` = Render asks for the value; it is never stored in git.
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_SERVER_KEY
+        sync: false
+      # Add later, when there is a domain / email provider / Sentry project:
+      #   DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_TRUSTED_ORIGINS,
+      #   EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL,
+      #   SENTRY_DSN, TICKETMASTER_API_KEY

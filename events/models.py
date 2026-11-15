@@ -130,6 +130,12 @@ class Event(models.Model):
 
     class Meta:
         ordering = ["date_time"]
+        indexes = [
+            # Listings are ordered by date and the radius filter starts with a
+            # rectangle on the coordinates (search.services._with_distances).
+            models.Index(fields=["date_time"], name="event_date_idx"),
+            models.Index(fields=["latitude", "longitude"], name="event_location_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["external_source", "external_id"],

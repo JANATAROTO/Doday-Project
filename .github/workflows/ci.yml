@@ -11,14 +11,31 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # The same database engine as production, so a query that only works on
+    # SQLite can never reach main.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: doday
+          POSTGRES_PASSWORD: doday
+          POSTGRES_DB: doday
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U doday"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      # Throwaway value for the checks below; real keys live in the server's environment.
+      # Throwaway values for the checks below; real ones live in the server's environment.
       DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+      DATABASE_URL: postgres://doday:doday@localhost:5432/doday
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -28,5 +45,11 @@ jobs:
         run: python manage.py check --deploy --fail-level ERROR
       - name: Migrations are up to date
         run: python manage.py makemigrations --check --dry-run
-      - name: Tests
+      - name: Static files build
+        run: python manage.py collectstatic --no-input
+      - name: Tests (PostgreSQL)
+        run: python manage.py test
+      - name: Tests (SQLite, the local development database)
+        env:
+          DATABASE_URL: ""
         run: python manage.py test

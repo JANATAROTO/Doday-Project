@@ -3,10 +3,6 @@
 
 {% block title %}{{ event.title }} — Doday{% endblock %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-{% endblock %}
-
 {% block content %}
 <a class="back-link" href="{% url 'events:event_list' %}">← {% translate "Back to events" %}</a>
 
@@ -32,7 +28,7 @@
     </p>
     <p class="event-meta">📍 {{ event.location }}</p>
     {% if transit_estimate %}
-    <p class="event-meta">🚌 {% blocktranslate with distance=transit_estimate.distance_km minutes=transit_estimate.duration_minutes %}About {{ distance }} km · {{ minutes }} min from your accommodation{% endblocktranslate %}</p>
+    <p class="event-meta">🚗 {% blocktranslate with distance=transit_estimate.distance_km minutes=transit_estimate.duration_minutes %}About {{ distance }} km · {{ minutes }} min from your accommodation{% endblocktranslate %}</p>
     {% endif %}
     <p class="event-price">{{ event.price_label }}</p>
 
@@ -73,14 +69,21 @@
     {% endif %}
 </article>
 
-{% if event.latitude is not None and event.longitude is not None %}
+{% if map_data %}
 <section class="map-section">
     <div class="map-toolbar">
         <h2>{% if transit_route %}{% translate "Route to the event" %}{% else %}{% translate "Event location" %}{% endif %}</h2>
+        {% if google_maps_js_key %}
         <button type="button" id="event-map-toggle" class="secondary-button">{% translate "Full-screen map" %}</button>
+        {% endif %}
     </div>
+    {% if google_maps_js_key %}
     <div id="event-map" aria-label="{% translate 'Map showing the event location and route' %}"></div>
-    {% if transit_route %}
+    <p id="event-map-error" class="notice notice-warning" hidden>⚠️ {% translate "The map is not available right now." %}</p>
+    {% else %}
+    <p class="notice notice-warning">{% translate "The map is not available right now." %}</p>
+    {% endif %}
+    {% if transit_route %}{# the distance and time are shown in the summary above #}
     {% elif accommodation %}
     <p class="notice">{% translate "The route can't be calculated right now. Try again later." %}</p>
     {% else %}
@@ -113,39 +116,86 @@
 {% endblock %}
 
 {% block extra_scripts %}
-{% if event.latitude is not None and event.longitude is not None %}
+{% if map_data and google_maps_js_key %}
 {% translate "Your accommodation" as your_accommodation %}
 {% translate "Split view" as split_view %}
 {% translate "Full-screen map" as full_screen_map %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-{% if transit_route %}{{ transit_route.coordinates|json_script:"route-data" }}{% endif %}
+{% get_current_language as LANGUAGE_CODE %}
+{{ map_data|json_script:"event-map-data" }}
 <script>
-    const eventMap = L.map("event-map").setView([{{ event.latitude|stringformat:"s" }}, {{ event.longitude|stringformat:"s" }}], 14);
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
-        attribution: "Tiles &copy; Esri",
-        maxZoom: 19
-    }).addTo(eventMap);
-    L.marker([{{ event.latitude|stringformat:"s" }}, {{ event.longitude|stringformat:"s" }}]).addTo(eventMap)
-        .bindPopup("<strong>{{ event.title|escapejs }}</strong><br>{{ event.location|escapejs }}")
-        .openPopup();
-    {% if accommodation %}
-    L.marker([{{ accommodation.latitude|stringformat:"s" }}, {{ accommodation.longitude|stringformat:"s" }}]).addTo(eventMap)
-        .bindPopup("{{ your_accommodation|escapejs }}");
-    {% endif %}
-    // No route (no accommodation or no ORS key) means no data block at all.
-    const routeData = document.getElementById("route-data");
-    const routeCoordinates = routeData ? JSON.parse(routeData.textContent) : [];
-    if (routeCoordinates.length) {
-        const routeLine = L.polyline(routeCoordinates, {color: "#ff5a5f", weight: 5}).addTo(eventMap);
-        eventMap.fitBounds(routeLine.getBounds(), {padding: [24, 24]});
+    // The route comes from Google's Routes API, whose terms require drawing it
+    // on a Google map; that is why this page uses the Maps JavaScript API.
+    var EVENT_MAP = JSON.parse(document.getElementById("event-map-data").textContent);
+
+    // Google calls this when it rejects the key (API not enabled, website not
+    // allowed). Visitors get a short notice; the detail is in the console.
+    window.gm_authFailure = function () {
+        document.getElementById("event-map").hidden = true;
+        document.getElementById("event-map-error").hidden = false;
+        var toggle = document.getElementById("event-map-toggle");
+        if (toggle) { toggle.hidden = true; }
+    };
+
+    function initEventMap() {
+        var eventPosition = { lat: EVENT_MAP.lat, lng: EVENT_MAP.lng };
+        var map = new google.maps.Map(document.getElementById("event-map"), {
+            center: eventPosition,
+            zoom: 15,
+        });
+        var bounds = new google.maps.LatLngBounds();
+        bounds.extend(eventPosition);
+
+        // Built with DOM nodes and textContent (never innerHTML), so the
+        // event's own text cannot inject markup into the info window.
+        var card = document.createElement("div");
+        card.className = "map-preview";
+        var title = document.createElement("strong");
+        title.textContent = EVENT_MAP.title;
+        card.appendChild(title);
+        card.appendChild(document.createElement("br"));
+        card.appendChild(document.createTextNode(EVENT_MAP.location));
+
+        var infoWindow = new google.maps.InfoWindow({ content: card });
+        var eventMarker = new google.maps.Marker({ position: eventPosition, map: map, title: EVENT_MAP.title });
+        eventMarker.addListener("click", function () { infoWindow.open(map, eventMarker); });
+
+        if (EVENT_MAP.accommodation) {
+            var home = new google.maps.Marker({
+                position: EVENT_MAP.accommodation,
+                map: map,
+                title: "{{ your_accommodation|escapejs }}",
+                label: "🏠",
+            });
+            bounds.extend(home.getPosition());
+        }
+
+        if (EVENT_MAP.route.length) {
+            var path = EVENT_MAP.route.map(function (point) { return { lat: point[0], lng: point[1] }; });
+            new google.maps.Polyline({ path: path, map: map, strokeColor: "#ff5a5f", strokeWeight: 5, strokeOpacity: 0.9 });
+            path.forEach(function (point) { bounds.extend(point); });
+        }
+
+        function frame() {
+            // With only the event on the map, keep the street-level zoom.
+            if (EVENT_MAP.accommodation || EVENT_MAP.route.length) {
+                map.fitBounds(bounds, 32);
+            } else {
+                map.setCenter(eventPosition);
+            }
+        }
+        frame();
+
+        // REQ-27: full-screen map / split view.
+        var mapSection = document.querySelector(".map-section");
+        document.getElementById("event-map-toggle").addEventListener("click", function () {
+            mapSection.classList.toggle("map-fullscreen");
+            this.textContent = mapSection.classList.contains("map-fullscreen")
+                ? "{{ split_view|escapejs }}" : "{{ full_screen_map|escapejs }}";
+            setTimeout(frame, 0);
+        });
     }
-    const mapSection = document.querySelector(".map-section");
-    document.getElementById("event-map-toggle").addEventListener("click", function () {
-        mapSection.classList.toggle("map-fullscreen");
-        this.textContent = mapSection.classList.contains("map-fullscreen")
-            ? "{{ split_view|escapejs }}" : "{{ full_screen_map|escapejs }}";
-        setTimeout(function () { eventMap.invalidateSize(); }, 0);
-    });
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_js_key }}&callback=initEventMap&loading=async&language={{ LANGUAGE_CODE }}"
+        async defer onerror="window.gm_authFailure();"></script>
 {% endif %}
 {% endblock %}

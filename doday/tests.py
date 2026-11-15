@@ -4,21 +4,33 @@ import os
 import re
 import subprocess
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
+from django.core.management import call_command
+from django.db import connection
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from doday.ratelimit import client_ip
+from doday.ratelimit import client_ip, is_limited
 from events.models import Category, Event
 
 User = get_user_model()
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _fresh_interpreter(code, env):
+    """Run `code` in a new Python process with exactly this environment."""
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        env={**env, "DJANGO_SETTINGS_MODULE": "doday.settings", "PYTHONPATH": str(PROJECT_ROOT)},
+        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+    )
 
 
 class SettingsTests(TestCase):
@@ -30,12 +42,7 @@ class SettingsTests(TestCase):
 
     def _load_settings(self, **env):
         clean = {k: v for k, v in os.environ.items() if not k.startswith("DJANGO_")}
-        clean.update(DJANGO_SETTINGS_MODULE="doday.settings", **env)
-        code = "from django.conf import settings; print(settings.DEBUG)"
-        return subprocess.run(
-            [sys.executable, "-c", code], env={**clean, "PYTHONPATH": str(PROJECT_ROOT)},
-            capture_output=True, text=True, cwd=str(PROJECT_ROOT),
-        )
+        return _fresh_interpreter("from django.conf import settings; print(settings.DEBUG)", {**clean, **env})
 
     def test_production_refuses_to_start_without_a_secret_key(self):
         if (PROJECT_ROOT / ".env").exists() or (PROJECT_ROOT / "api_key.env").exists():
@@ -53,6 +60,29 @@ class SettingsTests(TestCase):
         self.assertEqual(result.stdout.strip(), "True")
 
 
+class DatabaseSettingsTests(TestCase):
+    ENGINE = "from django.conf import settings; print(settings.DATABASES['default']['ENGINE'])"
+
+    def _engine(self, **env):
+        base = {k: v for k, v in os.environ.items() if not k.startswith("DJANGO_") and k != "DATABASE_URL"}
+        result = _fresh_interpreter(self.ENGINE, {**base, "DJANGO_DEBUG": "True", **env})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
+    def test_sqlite_without_a_database_url(self):
+        if (PROJECT_ROOT / ".env").exists() or (PROJECT_ROOT / "api_key.env").exists():
+            self.skipTest("a local .env file provides its own values")
+        self.assertEqual(self._engine(), "django.db.backends.sqlite3")
+
+    def test_blank_database_url_also_means_sqlite(self):
+        # .env.example ships `DATABASE_URL=`; copying it must not break local runs.
+        self.assertEqual(self._engine(DATABASE_URL=""), "django.db.backends.sqlite3")
+
+    def test_postgres_url_from_the_hosting_provider(self):
+        engine = self._engine(DATABASE_URL="postgresql://u:p@db.example.com/doday?sslmode=require")
+        self.assertEqual(engine, "django.db.backends.postgresql")
+
+
 class ClientIpTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
@@ -66,6 +96,46 @@ class ClientIpTests(TestCase):
         # The client can prepend anything; our proxy appends the address it saw.
         request = self.factory.get("/", HTTP_X_FORWARDED_FOR="6.6.6.6, 1.2.3.4", REMOTE_ADDR="10.0.0.9")
         self.assertEqual(client_ip(request), "1.2.3.4")
+
+    @override_settings(CLIENT_IP_HEADER="CF-Connecting-IP")
+    def test_platform_header_wins_when_configured(self):
+        # Render: X-Forwarded-For ends with a shared Cloudflare address, so
+        # counting by it would put every visitor in the same bucket.
+        request = self.factory.get(
+            "/",
+            HTTP_CF_CONNECTING_IP="99.61.165.29",
+            HTTP_X_FORWARDED_FOR="99.61.165.29, 104.22.17.40",
+            REMOTE_ADDR="10.21.157.68",
+        )
+        self.assertEqual(client_ip(request), "99.61.165.29")
+
+    def test_platform_header_is_ignored_unless_configured(self):
+        request = self.factory.get("/", HTTP_CF_CONNECTING_IP="6.6.6.6", REMOTE_ADDR="10.0.0.9")
+        self.assertEqual(client_ip(request), "10.0.0.9")
+
+    @override_settings(CLIENT_IP_HEADER="CF-Connecting-IP")
+    def test_falls_back_when_the_platform_header_is_missing(self):
+        request = self.factory.get("/", REMOTE_ADDR="10.0.0.9")
+        self.assertEqual(client_ip(request), "10.0.0.9")
+
+
+class HealthCheckTests(TestCase):
+    def test_answers_ok(self):
+        response = self.client.get("/healthz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"ok")
+
+    @override_settings(ALLOWED_HOSTS=["doday.example"], SECURE_SSL_REDIRECT=True)
+    def test_answers_the_platform_probe(self):
+        # The probe comes over plain HTTP from an internal address, with a Host
+        # the site does not serve; a 400 or a redirect would mark it as down.
+        response = self.client.get("/healthz", HTTP_HOST="10.21.157.68:10000")
+        self.assertEqual(response.status_code, 200)
+
+    def test_does_not_touch_the_database(self):
+        # A query per probe would keep a serverless database awake all day.
+        with self.assertNumQueries(0):
+            self.client.get("/healthz")
 
 
 @override_settings(RATELIMIT_ENABLED=True)
@@ -97,6 +167,35 @@ class RateLimitTests(TestCase):
         for _ in range(10):
             self.client.post(reverse("events:event_submit"), {})
         self.assertEqual(self.client.post(reverse("events:event_submit"), {}).status_code, 429)
+
+
+@override_settings(
+    RATELIMIT_ENABLED=True,
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "test_ratelimit_cache"}},
+)
+class RateLimitOnTheDatabaseCacheTests(TestCase):
+    """Production keeps the counters in the database (CACHES in settings.py)."""
+
+    def setUp(self):
+        call_command("createcachetable", verbosity=0)
+        self.request = RequestFactory().post("/", REMOTE_ADDR="203.0.113.7")
+
+    def test_counts_and_blocks(self):
+        answers = [is_limited(self.request, "probe", limit=3, window=3600) for _ in range(5)]
+        self.assertEqual(answers, [False, False, False, True, True])
+
+    def test_an_hour_long_limit_is_remembered_for_the_hour(self):
+        # The cache's default timeout is 5 minutes; the counter must outlive it.
+        for _ in range(3):
+            is_limited(self.request, "probe", limit=3, window=3600)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT expires FROM test_ratelimit_cache")
+            (expires,) = cursor.fetchone()
+        if isinstance(expires, str):  # SQLite hands dates back as text
+            expires = datetime.fromisoformat(expires)
+        if timezone.is_naive(expires):
+            expires = expires.replace(tzinfo=dt_timezone.utc)
+        self.assertGreater(expires - timezone.now(), timedelta(minutes=50))
 
 
 class HoneypotTests(TestCase):

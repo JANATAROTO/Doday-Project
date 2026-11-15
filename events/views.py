@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -76,6 +77,25 @@ def event_list(request):
     )
 
 
+def _map_data(event, accommodation, route):
+    """What the detail page's map draws, as plain data for json_script (which
+    escapes it, so an event title can never break out of the script tag)."""
+    if event.latitude is None or event.longitude is None:
+        return None
+    return {
+        "lat": float(event.latitude),
+        "lng": float(event.longitude),
+        "title": event.title,
+        "location": event.location,
+        "accommodation": (
+            {"lat": float(accommodation.latitude), "lng": float(accommodation.longitude)}
+            if accommodation
+            else None
+        ),
+        "route": route["coordinates"] if route else [],
+    }
+
+
 def event_detail(request, pk):
     event = get_object_or_404(Event.objects.select_related("category"), pk=pk)
     # REQ-25: pending or rejected proposals are invisible to the public; staff
@@ -88,7 +108,8 @@ def event_detail(request, pk):
     # REQ-15: External navigation link to Google Maps
     google_maps_url = event.google_maps_url
 
-    # REQ-03: transit estimate via ORS. Only calculate if authenticated & accommodation exists.
+    # REQ-03: route from the user's accommodation (Google Routes API). Only for
+    # logged-in users who saved one; every call is billable, so never for bots.
     transit_route = None
     accommodation = getattr(request.user, "accommodation", None) if request.user.is_authenticated else None
     if accommodation and event.latitude is not None and event.longitude is not None:
@@ -107,6 +128,8 @@ def event_detail(request, pk):
             "distance_km": transit_route["distance_km"] if transit_route else None,
             "duration_minutes": transit_route["duration_minutes"] if transit_route else None,
             "google_maps_url": google_maps_url,
+            "google_maps_js_key": settings.GOOGLE_MAPS_API_KEY,
+            "map_data": _map_data(event, accommodation, transit_route),
             "is_favorited": event.pk in _get_favorite_ids(request),
         },
     )

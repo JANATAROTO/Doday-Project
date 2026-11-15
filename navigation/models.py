@@ -14,6 +14,10 @@ class Accommodation(models.Model):
     address = models.CharField(max_length=255)
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    # When the coordinates came from Google's geocoder. Their terms allow
+    # keeping them for 30 days, so refresh_geocodes looks them up again before
+    # that. Empty when the user typed the coordinates by hand.
+    geocoded_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     def clean(self):
         super().clean()

@@ -1,2 +1,10 @@
 Django==6.0.*
 requests==2.32.*
+# Database: PostgreSQL in production (DATABASE_URL), SQLite locally.
+dj-database-url==3.*
+psycopg[binary]==3.*
+# Production web server and static files.
+gunicorn>=23,<28
+whitenoise[brotli]==6.*
+# Error monitoring (only active when SENTRY_DSN is set).
+sentry-sdk==2.*

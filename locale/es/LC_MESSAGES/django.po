@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Doday\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 02:31+0000\n"
+"POT-Creation-Date: 2026-11-14 22:08-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doday team\n"
 "Language-Team: Doday <>\n"
@@ -30,7 +30,7 @@ msgstr "Guardados en favoritos"
 msgid "Ticket link click"
 msgstr "Clic en el enlace de boletas"
 
-#: analytics/services.py:123 events/templates/events/event_detail.html:23
+#: analytics/services.py:123 events/templates/events/event_detail.html:19
 #: events/templates/events/event_list.html:51
 #: events/templates/events/favorites_list.html:17
 #: events/templates/events/moderation.html:20 navigation/views.py:60
@@ -72,7 +72,7 @@ msgid "Analytics"
 msgstr "Analítica"
 
 #: analytics/templates/analytics/dashboard.html:7 events/templates/429.html:11
-#: events/templates/events/event_detail.html:11
+#: events/templates/events/event_detail.html:7
 #: events/templates/events/event_form.html:10
 #: events/templates/events/event_submit.html:7
 #: events/templates/events/event_submit_done.html:11
@@ -315,23 +315,23 @@ msgstr "Aprobado"
 msgid "Rejected"
 msgstr "Rechazado"
 
-#: events/models.py:150
+#: events/models.py:156
 msgid "End date must be on or after the start date."
 msgstr "La fecha de fin debe ser igual o posterior a la de inicio."
 
-#: events/models.py:172
+#: events/models.py:178
 msgid "Today"
 msgstr "Hoy"
 
-#: events/models.py:174
+#: events/models.py:180
 msgid "This week"
 msgstr "Esta semana"
 
-#: events/models.py:177 events/models.py:190
+#: events/models.py:183 events/models.py:196
 msgid "Free"
 msgstr "Gratis"
 
-#: events/models.py:192
+#: events/models.py:198
 msgid "Price not available"
 msgstr "Precio no disponible"
 
@@ -400,7 +400,6 @@ msgstr ""
 
 #: events/templates/accounts/password_reset_done.html:12
 #: events/templates/accounts/password_reset_form.html:7
-#| msgid "Back to event"
 msgid "Back to log in"
 msgstr "Volver a iniciar sesión"
 
@@ -435,7 +434,6 @@ msgstr ""
 "contraseña nueva."
 
 #: events/templates/accounts/password_reset_form.html:16
-#| msgid "Ticket link"
 msgid "Send link"
 msgstr "Enviar enlace"
 
@@ -509,7 +507,7 @@ msgstr "Volver al evento"
 
 #: events/templates/events/event_confirm_delete.html:9
 #: events/templates/events/event_confirm_delete.html:15
-#: events/templates/events/event_detail.html:71
+#: events/templates/events/event_detail.html:67
 msgid "Delete event"
 msgstr "Eliminar evento"
 
@@ -522,45 +520,45 @@ msgstr ""
 "¿Seguro que quieres eliminar <strong>%(title)s</strong>? Esta acción no se "
 "puede deshacer."
 
-#: events/templates/events/event_detail.html:16
+#: events/templates/events/event_detail.html:12
 #, python-format
 msgid "This event is not public (%(status)s)."
 msgstr "Este evento no es público (%(status)s)."
 
-#: events/templates/events/event_detail.html:17
+#: events/templates/events/event_detail.html:13
 msgid "Go to moderation"
 msgstr "Ir a moderación"
 
-#: events/templates/events/event_detail.html:35
+#: events/templates/events/event_detail.html:31
 #, python-format
 msgid "About %(distance)s km · %(minutes)s min from your accommodation"
 msgstr "Aprox. %(distance)s km · %(minutes)s min desde tu alojamiento"
 
-#: events/templates/events/event_detail.html:42
+#: events/templates/events/event_detail.html:38
 msgid "Buy tickets"
 msgstr "Comprar boletas"
 
-#: events/templates/events/event_detail.html:45
+#: events/templates/events/event_detail.html:41
 msgid "Open in Google Maps"
 msgstr "Abrir en Google Maps"
 
-#: events/templates/events/event_detail.html:52
+#: events/templates/events/event_detail.html:48
 msgid "Remove from favorites"
 msgstr "Quitar de favoritos"
 
-#: events/templates/events/event_detail.html:52
+#: events/templates/events/event_detail.html:48
 msgid "Save to favorites"
 msgstr "Guardar en favoritos"
 
-#: events/templates/events/event_detail.html:56
+#: events/templates/events/event_detail.html:52
 msgid "Log in to save favorites"
 msgstr "Inicia sesión para guardar favoritos"
 
-#: events/templates/events/event_detail.html:58
+#: events/templates/events/event_detail.html:54
 msgid "Share"
 msgstr "Compartir"
 
-#: events/templates/events/event_detail.html:65
+#: events/templates/events/event_detail.html:61
 #, python-format
 msgid ""
 "<a href=\"%(accommodation_url)s\">Set your accommodation</a> to see the "
@@ -569,33 +567,38 @@ msgstr ""
 "<a href=\"%(accommodation_url)s\">Configura tu alojamiento</a> para ver el "
 "tiempo de viaje a este evento."
 
-#: events/templates/events/event_detail.html:70
+#: events/templates/events/event_detail.html:66
 #: events/templates/events/event_form.html:13
 msgid "Edit event"
 msgstr "Editar evento"
 
-#: events/templates/events/event_detail.html:79
+#: events/templates/events/event_detail.html:75
 msgid "Route to the event"
 msgstr "Ruta al evento"
 
-#: events/templates/events/event_detail.html:79
+#: events/templates/events/event_detail.html:75
 msgid "Event location"
 msgstr "Ubicación del evento"
 
-#: events/templates/events/event_detail.html:80
-#: events/templates/events/event_detail.html:119
+#: events/templates/events/event_detail.html:77
+#: events/templates/events/event_detail.html:122
 msgid "Full-screen map"
 msgstr "Mapa en pantalla completa"
 
-#: events/templates/events/event_detail.html:82
+#: events/templates/events/event_detail.html:81
 msgid "Map showing the event location and route"
 msgstr "Mapa con la ubicación del evento y la ruta"
 
-#: events/templates/events/event_detail.html:85
+#: events/templates/events/event_detail.html:82
+#: events/templates/events/event_detail.html:84
+msgid "The map is not available right now."
+msgstr "El mapa no está disponible en este momento."
+
+#: events/templates/events/event_detail.html:88
 msgid "The route can't be calculated right now. Try again later."
 msgstr "No se puede calcular la ruta en este momento. Inténtalo más tarde."
 
-#: events/templates/events/event_detail.html:90
+#: events/templates/events/event_detail.html:93
 #, python-format
 msgid ""
 "<a href=\"%(accommodation_url)s\">Set your accommodation</a> to see the "
@@ -604,7 +607,7 @@ msgstr ""
 "<a href=\"%(accommodation_url)s\">Configura tu alojamiento</a> para ver la "
 "ruta a este evento."
 
-#: events/templates/events/event_detail.html:92
+#: events/templates/events/event_detail.html:95
 #, python-format
 msgid ""
 "<a href=\"%(login_url)s?next=%(accommodation_next)s\">Log in</a> and set "
@@ -613,15 +616,15 @@ msgstr ""
 "<a href=\"%(login_url)s?next=%(accommodation_next)s\">Inicia sesión</a> y "
 "configura tu alojamiento para ver la ruta a este evento."
 
-#: events/templates/events/event_detail.html:99
+#: events/templates/events/event_detail.html:102
 msgid "Link copied!"
 msgstr "¡Enlace copiado!"
 
-#: events/templates/events/event_detail.html:117
+#: events/templates/events/event_detail.html:120
 msgid "Your accommodation"
 msgstr "Tu alojamiento"
 
-#: events/templates/events/event_detail.html:118
+#: events/templates/events/event_detail.html:121
 msgid "Split view"
 msgstr "Vista dividida"
 
@@ -799,37 +802,37 @@ msgstr "Crea tu cuenta"
 msgid "Already have an account? Log in"
 msgstr "¿Ya tienes cuenta? Inicia sesión"
 
-#: events/views.py:147
+#: events/views.py:170
 msgid "Only admin users can create events."
 msgstr "Solo los administradores pueden crear eventos."
 
-#: events/views.py:167
+#: events/views.py:190
 msgid "Only the admin user who organizes this event can edit it."
 msgstr "Solo el administrador que organiza este evento puede editarlo."
 
-#: events/views.py:185
+#: events/views.py:208
 msgid "Only the admin user who organizes this event can delete it."
 msgstr "Solo el administrador que organiza este evento puede eliminarlo."
 
-#: events/views.py:222
+#: events/views.py:245
 msgid "Only admin users can moderate events."
 msgstr "Solo los administradores pueden moderar eventos."
 
-#: events/views.py:250
+#: events/views.py:273
 #, python-format
 msgid "“%(title)s” is now published."
 msgstr "«%(title)s» ya está publicado."
 
-#: events/views.py:253
+#: events/views.py:276
 #, python-format
 msgid "“%(title)s” was rejected and stays hidden."
 msgstr "«%(title)s» fue rechazado y sigue oculto."
 
-#: events/views.py:255
+#: events/views.py:278
 msgid "Unknown moderation decision."
 msgstr "Decisión de moderación desconocida."
 
-#: navigation/forms.py:21
+#: navigation/forms.py:22
 msgid ""
 "We could not find the coordinates for that address. Check the address, or "
 "enter the latitude and longitude manually."
@@ -837,37 +840,37 @@ msgstr ""
 "No encontramos las coordenadas de esa dirección. Revisa la dirección o "
 "ingresa la latitud y la longitud manualmente."
 
-#: navigation/forms.py:29
+#: navigation/forms.py:30
 msgid "Address"
 msgstr "Dirección"
 
-#: navigation/forms.py:30
+#: navigation/forms.py:31
 msgid "Latitude"
 msgstr "Latitud"
 
-#: navigation/forms.py:31
+#: navigation/forms.py:32
 msgid "Longitude"
 msgstr "Longitud"
 
-#: navigation/forms.py:34
+#: navigation/forms.py:35
 msgid "Street address or place name. We look up the coordinates for you."
 msgstr "Dirección o nombre del lugar. Nosotros buscamos las coordenadas."
 
-#: navigation/models.py:25
+#: navigation/models.py:29
 msgid "Latitude must be between -90 and 90."
 msgstr "La latitud debe estar entre -90 y 90."
 
-#: navigation/models.py:27
+#: navigation/models.py:31
 msgid "Longitude must be between -180 and 180."
 msgstr "La longitud debe estar entre -180 y 180."
 
-#: navigation/models.py:32
+#: navigation/models.py:36
 #, python-format
 msgid "Latitude must be within the allowed area (%(south)s to %(north)s)."
 msgstr ""
 "La latitud debe estar dentro del área permitida (%(south)s a %(north)s)."
 
-#: navigation/models.py:37
+#: navigation/models.py:41
 #, python-format
 msgid "Longitude must be within the allowed area (%(west)s to %(east)s)."
 msgstr ""

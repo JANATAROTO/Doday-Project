@@ -14,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,10 +26,10 @@ def _load_api_keys(filename="api_key.env"):
 
     The file is gitignored, so real keys never reach the repository. Blank
     lines and `#` comments are skipped, and the value is split on the FIRST
-    `=` only because the ORS token is base64 and ends in `=` padding.
+    `=` only, because some tokens are base64 and end in `=` padding.
 
     A real environment variable always wins over the file, so
-    `export ORS_API_KEY=...` keeps working. Any problem reading or parsing
+    `export GOOGLE_MAPS_API_KEY=...` keeps working. Any problem reading or parsing
     the file degrades to "no key" in silence -- same defensive contract as
     the external integrations in navigation/services.py.
     """
@@ -97,16 +98,21 @@ def _env_list(name):
     return [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
 
 
-# Deployment (AWS Academy EC2): the server's public IP or domain must be listed
-# here, otherwise Django answers 400 Bad Request. Set it as an environment
-# variable or in api_key.env on the server, e.g.
-#   DJANGO_ALLOWED_HOSTS=54.123.45.67,localhost,127.0.0.1
+# The public domain(s) of the site must be listed here, otherwise Django
+# answers 400 Bad Request, e.g. DJANGO_ALLOWED_HOSTS=doday.co,www.doday.co
 # Empty (the default) keeps the local development behaviour.
 ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
 
 # Only needed when the site is served over HTTPS or behind a proxy, e.g.
-#   DJANGO_CSRF_TRUSTED_ORIGINS=https://doday.example.com
+#   DJANGO_CSRF_TRUSTED_ORIGINS=https://doday.co,https://www.doday.co
 CSRF_TRUSTED_ORIGINS = _env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+
+# Render tells the service its own address (something.onrender.com), so the
+# site works right after the first deploy with nothing to configure by hand.
+_render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if _render_hostname:
+    ALLOWED_HOSTS.append(_render_hostname)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{_render_hostname}')
 
 # HTTPS hardening, switched on with DJANGO_HTTPS=True once the site is served
 # over TLS (kept off by default so plain-HTTP local development still works).
@@ -119,8 +125,10 @@ if _env_bool('DJANGO_HTTPS'):
     # Hosting platforms terminate TLS at a proxy and forward this header.
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Number of trusted reverse proxies in front of Django (0 = none). Used to read
-# the visitor's real IP for rate limiting; see doday/ratelimit.py.
+# How to read the visitor's real IP for rate limiting (see doday/ratelimit.py).
+# Either the header the platform's edge sets (Render: CF-Connecting-IP) or the
+# number of trusted reverse proxies in front of Django (0 = none).
+CLIENT_IP_HEADER = os.environ.get('DJANGO_CLIENT_IP_HEADER', '').strip()
 TRUSTED_PROXY_COUNT = int(os.environ.get('DJANGO_TRUSTED_PROXY_COUNT', '0') or 0)
 
 # The test suite posts to the same forms many times from one address; the
@@ -144,7 +152,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Answers the hosting platform's health check before anything else runs.
+    'doday.health.HealthCheckMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Serves the CSS straight from the application, compressed and cacheable,
+    # so no separate web server (Nginx) is needed. Must follow SecurityMiddleware.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     # REQ-29: picks the interface language from the language switcher (saved
     # in a cookie) or, on a first visit, from the browser's Accept-Language,
@@ -181,12 +194,38 @@ WSGI_APPLICATION = 'doday.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# PostgreSQL when DATABASE_URL is set (production, CI); SQLite otherwise, so
+# local development needs no database server.
+# (An empty DATABASE_URL, as in a freshly copied .env.example, means SQLite.)
+_database_url = os.environ.get('DATABASE_URL', '').strip()
+if _database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _database_url,
+            # Reuse connections for a minute; the health check drops the ones a
+            # serverless database (Neon) closed while it was suspended.
+            conn_max_age=60,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+USING_POSTGRES = DATABASES['default']['ENGINE'].endswith('postgresql')
+
+# Cache: shared between workers and kept across restarts when there is a real
+# database (rate limiting counts on it); in-memory for local development.
+if USING_POSTGRES and not _RUNNING_TESTS:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache',
+        }
+    }
 
 
 # Password validation
@@ -251,20 +290,22 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Doday <no-reply@doday
 LOGIN_REDIRECT_URL = 'events:event_list'
 LOGOUT_REDIRECT_URL = 'events:event_list'
 
-# GOOGLE_MAPS_API_KEY: REQ-09 interactive event map (Maps JavaScript API,
-# client-side, navigation/views.py:event_map). Without it, the map page shows
-# a setup message instead of the map. Needs "Maps JavaScript API" enabled in
-# Google Cloud Console.
+# Google Maps Platform, two keys from the same Google Cloud project:
 #
-# ORS_API_KEY: REQ-03 transit distance/time estimate (OpenRouteService,
-# server-side, see navigation/services.py). Without it, that estimate is
-# simply skipped. This is a *different* provider from GOOGLE_MAPS_API_KEY —
-# the old Google Distance Matrix integration was replaced by ORS.
+# GOOGLE_MAPS_API_KEY — browser key. It is sent to the visitor's browser to
+# draw the maps (Maps JavaScript API), so restrict it by website. Without it
+# the map pages show a notice instead of the map.
+#
+# GOOGLE_MAPS_SERVER_KEY — server key. It never leaves the server and is used
+# for address lookup (Geocoding API) and routes (Routes API); restrict it to
+# those two APIs. Without it, addresses need manual coordinates and no route
+# is shown. A website-restricted key does not work here: Google rejects it for
+# server calls.
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
-ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
+GOOGLE_MAPS_SERVER_KEY = os.environ.get('GOOGLE_MAPS_SERVER_KEY', '')
 # REQ-13: Ticketmaster Discovery API key
 # Set the TICKETMASTER_API_KEY environment variable to enable event sync.
-# Without it, sync_ticketmaster_events() returns [] silently (same as ORS_API_KEY).
+# Without it, sync_ticketmaster_events() returns [] silently.
 TICKETMASTER_API_KEY = os.environ.get('TICKETMASTER_API_KEY', '')
 
 # REQ-26: configurable city boundary for accommodation coordinates.
@@ -280,9 +321,51 @@ ACCOMMODATION_ALLOWED_BOUNDS = _decimal_bounds(
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-# `python manage.py collectstatic` copies the CSS here when DEBUG is False and
-# a web server (e.g. Nginx) serves the static files.
+# `python manage.py collectstatic` gathers the files here; WhiteNoise serves
+# them. In production each file gets a fingerprint in its name
+# (style.3f2a9c.css), so browsers can cache it forever and still pick up a new
+# version on the next deploy.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+if not DEBUG and not _RUNNING_TESTS:
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    }
+
+
+# Logging: everything goes to the console, where the hosting platform collects
+# it. (Django's own default stays silent when DEBUG is off.)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '%(levelname)s %(name)s: %(message)s'},
+    },
+    'handlers': {
+        # Silent while the test suite runs: it provokes errors on purpose.
+        'console': {
+            'class': 'logging.NullHandler' if _RUNNING_TESTS else 'logging.StreamHandler',
+            **({} if _RUNNING_TESTS else {'formatter': 'plain'}),
+        },
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
+
+# Error tracking (optional): with SENTRY_DSN set, unhandled errors are reported
+# to Sentry with their stack trace. No personal data is attached.
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '').strip()
+if SENTRY_DSN and not _RUNNING_TESTS:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        send_default_pii=False,
+        traces_sample_rate=0,
+    )
 
 # https://docs.djangoproject.com/en/6.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
