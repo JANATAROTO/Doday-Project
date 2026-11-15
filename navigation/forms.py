@@ -1,4 +1,5 @@
 from django import forms
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .models import Accommodation
@@ -10,7 +11,7 @@ class AccommodationForm(forms.ModelForm):
 
     The user only types an address — the coordinates are resolved through the
     Navigation component's geocoder and never shown. They are only revealed,
-    as a manual fallback, when the lookup fails: no ORS_API_KEY configured, an
+    as a manual fallback, when the lookup fails: no GOOGLE_MAPS_SERVER_KEY, an
     address that cannot be resolved, or the API being down. Without that
     fallback the form would be unusable whenever the geocoder is unavailable.
     """
@@ -38,6 +39,7 @@ class AccommodationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Rendered only after a failed lookup; the template checks this.
         self.show_coordinate_fields = False
+        self._geocoded = False
         self._visible_widgets = {}
 
         for name in self.COORDINATE_FIELDS:
@@ -79,7 +81,19 @@ class AccommodationForm(forms.ModelForm):
         coordinates = geocode_address(address)
         if coordinates:
             cleaned_data["latitude"], cleaned_data["longitude"] = coordinates
+            self._geocoded = True
             return cleaned_data
 
         self._reveal_coordinate_fields()
         raise forms.ValidationError(self.LOOKUP_FAILED)
+
+    def save(self, commit=True):
+        accommodation = super().save(commit=False)
+        if self._geocoded:
+            accommodation.geocoded_at = timezone.now()
+        elif set(self.COORDINATE_FIELDS) & set(self.changed_data):
+            # Typed by hand: these are the user's own coordinates, not Google's.
+            accommodation.geocoded_at = None
+        if commit:
+            accommodation.save()
+        return accommodation

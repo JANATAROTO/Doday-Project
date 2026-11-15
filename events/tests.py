@@ -1,10 +1,15 @@
 from datetime import timedelta
 from decimal import Decimal
+from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.management import call_command
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+
+from navigation.models import Accommodation
 
 from .models import Category, Event
 
@@ -161,6 +166,53 @@ class EventDetailViewTests(TestCase):
         self.assertContains(response, "https://www.google.com/maps/search/?api=1&amp;query=6.244000,-75.581000")
         self.assertContains(response, 'target="_blank"')
         self.assertContains(response, 'rel="noopener noreferrer"')
+
+    def _located_event(self):
+        return Event.objects.create(
+            title="Maps Event", description="desc", date_time=timezone.now(),
+            location="Somewhere", latitude=6.244, longitude=-75.581,
+        )
+
+    @override_settings(GOOGLE_MAPS_API_KEY="browser-key", GOOGLE_MAPS_SERVER_KEY="server-key")
+    def test_map_is_drawn_with_google_and_never_shows_the_server_key(self):
+        # Google's terms: its routes and geocodes may only be shown on a Google map.
+        response = self.client.get(reverse("events:event_detail", args=[self._located_event().pk]))
+        html = response.content.decode()
+        self.assertIn('id="event-map"', html)
+        self.assertIn("maps.googleapis.com/maps/api/js?key=browser-key", html)
+        self.assertNotIn("leaflet", html.lower())
+        self.assertNotIn("server-key", html)
+        self.assertEqual(response.context["map_data"]["lat"], 6.244)
+        self.assertEqual(response.context["map_data"]["route"], [])
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_notice_replaces_the_map_without_a_browser_key(self):
+        response = self.client.get(reverse("events:event_detail", args=[self._located_event().pk]))
+        self.assertContains(response, "The map is not available right now.")
+        self.assertNotContains(response, 'id="event-map"')
+        self.assertNotContains(response, "maps.googleapis.com/maps/api/js")
+
+    @override_settings(GOOGLE_MAPS_API_KEY="browser-key")
+    @patch("events.views.get_transit_route")
+    def test_route_from_the_accommodation_reaches_the_map(self, mock_route):
+        mock_route.return_value = {
+            "distance_km": 5.3, "duration_minutes": 12, "coordinates": [[6.21, -75.57], [6.244, -75.581]],
+        }
+        user = get_user_model().objects.create_user("ana", "ana@example.com", "S3gura!pass")
+        Accommodation.objects.create(user=user, address="Parque Lleras", latitude=6.2089, longitude=-75.568)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("events:event_detail", args=[self._located_event().pk]))
+
+        self.assertEqual(response.context["map_data"]["route"], [[6.21, -75.57], [6.244, -75.581]])
+        self.assertEqual(response.context["map_data"]["accommodation"]["lat"], 6.2089)
+        self.assertContains(response, "5.3")
+        self.assertContains(response, "Route to the event")
+
+    @patch("events.views.get_transit_route")
+    def test_anonymous_visitors_never_trigger_a_billable_route_request(self, mock_route):
+        self.client.get(reverse("events:event_detail", args=[self._located_event().pk]))
+        mock_route.assert_not_called()
 
     def test_omits_google_maps_link_when_coords_missing(self):
         event = Event.objects.create(
@@ -320,7 +372,7 @@ class InterfaceLanguageTests(TestCase):
 
     def test_map_coordinates_keep_a_dot_in_spanish(self):
         # Spanish formats decimals with a comma ("6,244"), which would break the
-        # Leaflet JavaScript; coordinates must always be rendered with a dot.
+        # map link; coordinates must always be rendered with a dot.
         response = self.client.get(
             reverse("events:event_detail", args=[self.event.pk]), HTTP_ACCEPT_LANGUAGE="es"
         )
@@ -456,3 +508,48 @@ class CommunitySubmissionTests(TestCase):
     def test_staff_events_are_published_immediately(self):
         event = Event.objects.create(title="Staff", description="d", date_time=timezone.now(), location="x")
         self.assertEqual(event.status, Event.Status.APPROVED)
+
+
+class CheckIntegrationsTests(TestCase):
+    def _run(self, *args):
+        out = StringIO()
+        call_command("check_integrations", *args, stdout=out, no_color=True)
+        return out.getvalue()
+
+    @override_settings(GOOGLE_MAPS_API_KEY="", GOOGLE_MAPS_SERVER_KEY="")
+    def test_names_what_is_missing_without_calling_google(self):
+        with patch("navigation.services.requests.get") as mock_get, patch("navigation.services.requests.post") as mock_post:
+            output = self._run()
+        self.assertIn("GOOGLE_MAPS_API_KEY is not set", output)
+        self.assertIn("GOOGLE_MAPS_SERVER_KEY is not set", output)
+        self.assertIn("need attention", output)
+        mock_get.assert_not_called()
+        mock_post.assert_not_called()
+
+    @override_settings(GOOGLE_MAPS_API_KEY="browser-key-123", GOOGLE_MAPS_SERVER_KEY="server-key-456")
+    @patch("navigation.services.estimate_transit", return_value=(5.3, 12))
+    @patch("navigation.services.geocode_address", return_value=("6.2", "-75.5"))
+    def test_reports_working_keys_without_printing_them(self, mock_geocode, mock_route):
+        output = self._run()
+        self.assertIn("Geocoding API: address lookup works", output)
+        self.assertIn("Routes API: route calculation works", output)
+        self.assertNotIn("browser-key-123", output)
+        self.assertNotIn("server-key-456", output)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="browser-key-123", GOOGLE_MAPS_SERVER_KEY="server-key-456")
+    @patch("navigation.services.estimate_transit", return_value=None)
+    @patch("navigation.services.geocode_address", return_value=None)
+    def test_says_which_google_api_failed(self, mock_geocode, mock_route):
+        output = self._run()
+        self.assertIn("!   Geocoding API", output)
+        self.assertIn("!   Routes API", output)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="same-key", GOOGLE_MAPS_SERVER_KEY="same-key")
+    def test_warns_when_one_key_is_used_for_both(self):
+        self.assertIn("same key as the browser key", self._run("--offline"))
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key-456")
+    @patch("navigation.services.geocode_address")
+    def test_offline_makes_no_request(self, mock_geocode):
+        self.assertIn("not tested: --offline", self._run("--offline"))
+        mock_geocode.assert_not_called()

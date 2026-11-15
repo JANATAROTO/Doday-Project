@@ -10,10 +10,10 @@ what to do with it.
 """
 from datetime import datetime, time
 
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
-from navigation.services import haversine_km
+from navigation.services import bounding_box, distance_km_expression
 
 from .forms import SORT_DATE, SORT_DISTANCE
 
@@ -28,10 +28,11 @@ def filter_events(events, filter_form, origin=None):
 
     `origin` is the (latitude, longitude) of the user's accommodation, or None
     when they have not saved one. With an origin, every event comes back
-    carrying a `distance_km` attribute and the result is a list instead of a
-    queryset, because the distance is computed in Python. Without one, the
-    queryset is returned untouched and both the radius (REQ-08) and proximity
-    sorting (REQ-14) are ignored — there is nothing to measure from.
+    carrying a `distance_km` attribute, computed by the database so the radius
+    and the proximity order are applied in SQL and the result stays a lazy
+    queryset (it can be paginated without loading every event). Without one,
+    the queryset is returned untouched and both the radius (REQ-08) and
+    proximity sorting (REQ-14) are ignored — there is nothing to measure from.
     """
     radius_km = None
     sort = SORT_DATE
@@ -96,30 +97,18 @@ def _by_proximity(events):
     Events without coordinates cannot be placed on a distance scale, so they
     go to the end as a group rather than being dropped — the same treatment
     they get everywhere else in the project. (With a radius they are already
-    gone; see _with_distances.)
-
-    The sort key never compares None against a float: the boolean first
-    element partitions located from unlocated events before any number is
-    looked at.
-
-    `sorted` is stable and `events` arrives in Event.Meta.ordering, so events
-    at the same distance keep their start-date order for free.
+    gone; see _with_distances.) Events at the same distance keep their
+    start-date order.
     """
-    return sorted(
-        events,
-        key=lambda event: (
-            event.distance_km is None,
-            event.distance_km if event.distance_km is not None else 0.0,
-        ),
-    )
+    return events.order_by(F("distance_exact_km").asc(nulls_last=True), "date_time", "pk")
 
 
 def _with_distances(events, origin, radius_km):
-    """Attach `distance_km` to every event, dropping those outside the radius.
+    """Annotate `distance_km` on every event, dropping those outside the radius.
 
-    Returns a list: the distance is plain Python arithmetic (see
-    navigation.services.haversine_km), not something the database can filter
-    on, and one external routing call per event is not an option.
+    The distance is the great-circle formula evaluated by the database (see
+    navigation.services.distance_km_expression), not a routing call: a listing
+    needs it for every event at once.
 
     Events with no coordinates are a legitimate part of the catalogue — some
     have no physical venue at all. They get `distance_km = None` and are kept
@@ -127,21 +116,18 @@ def _with_distances(events, origin, radius_km):
     something with no location cannot be "within X km".
     """
     origin_latitude, origin_longitude = origin
-    limit = float(radius_km) if radius_km is not None else None
-    within_radius = []
+    exact, rounded = distance_km_expression(origin_latitude, origin_longitude)
+    events = events.annotate(distance_exact_km=exact, distance_km=rounded)
 
-    for event in events:
-        if event.latitude is None or event.longitude is None:
-            event.distance_km = None
-            if limit is None:
-                within_radius.append(event)
-            continue
-
-        distance = haversine_km(
-            origin_latitude, origin_longitude, event.latitude, event.longitude
+    if radius_km is not None:
+        limit = float(radius_km)
+        # Cheap rectangle first, so the indexes on the coordinates discard far
+        # events before the trigonometry runs; then the exact circle.
+        south, north, west, east = bounding_box(origin_latitude, origin_longitude, limit)
+        events = events.filter(
+            latitude__range=(south, north),
+            longitude__range=(west, east),
+            distance_exact_km__lte=limit,
         )
-        event.distance_km = round(distance, 1)
-        if limit is None or distance <= limit:
-            within_radius.append(event)
 
-    return within_radius
+    return events

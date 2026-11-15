@@ -1,13 +1,27 @@
+import math
+from datetime import timedelta
 from decimal import Decimal
+from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.management import call_command
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from events.models import Category, Event
 from navigation.forms import AccommodationForm
 from navigation.models import Accommodation
-from navigation.services import estimate_transit, geocode_address, haversine_km
+from navigation.services import (
+    bounding_box,
+    decode_polyline,
+    distance_km_expression,
+    estimate_transit,
+    geocode_address,
+    get_transit_route,
+    haversine_km,
+)
 
 User = get_user_model()
 
@@ -21,111 +35,233 @@ class AccommodationModelTests(TestCase):
         self.assertEqual(str(accommodation), "traveler - Hotel Central")
 
 
-from unittest.mock import MagicMock, patch
-from django.test import override_settings
+class _Response:
+    """Stand-in for requests' response."""
 
-class EstimateTransitTests(TestCase):
-    def test_returns_none_without_api_key(self):
-        # settings.ORS_API_KEY is empty by default in tests/dev.
-        result = estimate_transit(6.244, -75.581, 6.25, -75.56)
-        self.assertIsNone(result)
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
 
-    @override_settings(ORS_API_KEY="test_ors_key")
-    @patch("navigation.services.requests.get")
-    def test_openrouteservice_success_calculates_distance_and_duration(self, mock_get):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "features": [
-                {
-                    "properties": {
-                        "summary": {
-                            "distance": 5324.4,  # 5.3 km
-                            "duration": 720.0,   # 12 min
-                        }
-                    }
-                }
-            ]
-        }
-        mock_get.return_value = mock_response
-
-        result = estimate_transit(6.244, -75.581, 6.25, -75.56)
-        self.assertEqual(result, (5.3, 12))
-
-        # Verify ORS coordinate order rule: strictly [longitude, latitude]
-        mock_get.assert_called_once()
-        _, kwargs = mock_get.call_args
-        self.assertEqual(kwargs["params"]["start"], "-75.581,6.244")
-        self.assertEqual(kwargs["params"]["end"], "-75.56,6.25")
-
-    @override_settings(ORS_API_KEY="test_ors_key")
-    @patch("navigation.services.requests.get")
-    def test_openrouteservice_error_returns_none_silently(self, mock_get):
-        mock_get.side_effect = Exception("API error or timeout")
-        result = estimate_transit(6.244, -75.581, 6.25, -75.56)
-        self.assertIsNone(result)
+    def json(self):
+        return self._payload
 
 
-def _geocode_response(longitude, latitude):
-    """Minimal Pelias GeoJSON payload — coordinates are [lon, lat]."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "features": [{"geometry": {"coordinates": [longitude, latitude]}}]
-    }
-    return mock_response
+# Google's documented sample: (38.5, -120.2), (40.7, -120.95), (43.252, -126.453).
+SAMPLE_POLYLINE = "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+
+
+class PolylineTests(TestCase):
+    def test_decodes_googles_documented_example(self):
+        self.assertEqual(
+            decode_polyline(SAMPLE_POLYLINE),
+            [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]],
+        )
+
+    def test_empty_and_truncated_input_do_not_fail(self):
+        self.assertEqual(decode_polyline(""), [])
+        self.assertEqual(decode_polyline(SAMPLE_POLYLINE[:-1])[:2], [[38.5, -120.2], [40.7, -120.95]])
+
+
+class RouteTests(TestCase):
+    """REQ-03: route from the accommodation to an event (Google Routes API)."""
+
+    def test_returns_none_without_a_server_key(self):
+        # GOOGLE_MAPS_SERVER_KEY is empty by default in tests and development.
+        self.assertIsNone(estimate_transit(6.244, -75.581, 6.25, -75.56))
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key", GOOGLE_MAPS_API_KEY="browser-key")
+    @patch("navigation.services.requests.post")
+    def test_distance_duration_and_path(self, mock_post):
+        mock_post.return_value = _Response({
+            "routes": [{
+                "distanceMeters": 5324,
+                "duration": "720s",
+                "polyline": {"encodedPolyline": SAMPLE_POLYLINE},
+            }]
+        })
+
+        route = get_transit_route(Decimal("6.244000"), Decimal("-75.581000"), 6.25, -75.56)
+
+        self.assertEqual(route["distance_km"], 5.3)
+        self.assertEqual(route["duration_minutes"], 12)
+        self.assertEqual(route["coordinates"][0], [38.5, -120.2])
+
+        _, kwargs = mock_post.call_args
+        self.assertEqual(
+            kwargs["json"]["origin"]["location"]["latLng"], {"latitude": 6.244, "longitude": -75.581}
+        )
+        self.assertEqual(
+            kwargs["json"]["destination"]["location"]["latLng"], {"latitude": 6.25, "longitude": -75.56}
+        )
+        # The server key authenticates the call; the browser key must not be used.
+        self.assertEqual(kwargs["headers"]["X-Goog-Api-Key"], "server-key")
+        # Cheapest billing tier: no traffic, only the fields the page shows.
+        self.assertEqual(kwargs["json"]["routingPreference"], "TRAFFIC_UNAWARE")
+        self.assertEqual(
+            kwargs["headers"]["X-Goog-FieldMask"],
+            "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline",
+        )
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
+    @patch("navigation.services.requests.post")
+    def test_estimate_is_distance_and_minutes(self, mock_post):
+        mock_post.return_value = _Response({"routes": [{"distanceMeters": 5324, "duration": "720s"}]})
+        self.assertEqual(estimate_transit(6.244, -75.581, 6.25, -75.56), (5.3, 12))
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
+    @patch("navigation.services.requests.post")
+    def test_no_route_found_returns_none(self, mock_post):
+        mock_post.return_value = _Response({})
+        with self.assertNoLogs("navigation.services", level="WARNING"):
+            self.assertIsNone(get_transit_route(6.244, -75.581, 6.25, -75.56))
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
+    @patch("navigation.services.requests.post")
+    def test_rejected_key_returns_none_and_logs_the_reason_without_the_key(self, mock_post):
+        mock_post.return_value = _Response(
+            {"error": {"code": 403, "message": "Routes API has not been used in project 1 before or it is disabled."}},
+            status_code=403,
+        )
+        with self.assertLogs("navigation.services", level="WARNING") as logs:
+            self.assertIsNone(get_transit_route(6.244, -75.581, 6.25, -75.56))
+        self.assertIn("Routes API has not been used", logs.output[0])
+        self.assertNotIn("server-key", logs.output[0])
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
+    @patch("navigation.services.requests.post")
+    def test_network_error_returns_none(self, mock_post):
+        mock_post.side_effect = Exception("timeout")
+        with self.assertLogs("navigation.services", level="WARNING"):
+            self.assertIsNone(estimate_transit(6.244, -75.581, 6.25, -75.56))
+
+
+def _geocode_response(latitude, longitude):
+    return _Response({
+        "status": "OK",
+        "results": [{"geometry": {"location": {"lat": latitude, "lng": longitude}}}],
+    })
 
 
 class GeocodeAddressTests(TestCase):
-    """REQ-01: resolving an address into coordinates."""
+    """REQ-01: resolving an address into coordinates (Google Geocoding API)."""
 
-    def test_returns_none_without_api_key(self):
-        # settings.ORS_API_KEY is empty by default in tests/dev.
+    def test_returns_none_without_a_server_key(self):
         self.assertIsNone(geocode_address("Parque Lleras, Medellín"))
 
-    @override_settings(ORS_API_KEY="test_ors_key")
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
     @patch("navigation.services.requests.get")
-    def test_returns_latitude_longitude_in_that_order(self, mock_get):
-        mock_get.return_value = _geocode_response(-75.568000, 6.208900)
+    def test_returns_latitude_then_longitude(self, mock_get):
+        mock_get.return_value = _geocode_response(6.2089, -75.568)
+        self.assertEqual(
+            geocode_address("Parque Lleras, Medellín"), (Decimal("6.208900"), Decimal("-75.568000"))
+        )
 
-        result = geocode_address("Parque Lleras, Medellín")
-
-        # Pelias answers [lon, lat]; we hand back (lat, lon).
-        self.assertEqual(result, (Decimal("6.208900"), Decimal("-75.568000")))
-
-    @override_settings(ORS_API_KEY="test_ors_key")
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key", ACCOMMODATION_ALLOWED_BOUNDS=(6.10, 6.40, -75.70, -75.45))
     @patch("navigation.services.requests.get")
-    def test_query_is_biased_to_colombia_and_medellin(self, mock_get):
-        mock_get.return_value = _geocode_response(-75.568000, 6.208900)
+    def test_query_is_biased_to_colombia_and_the_service_area(self, mock_get):
+        mock_get.return_value = _geocode_response(6.2089, -75.568)
 
         geocode_address("Carrera 43A #7-50")
 
         _, kwargs = mock_get.call_args
-        self.assertEqual(kwargs["params"]["boundary.country"], "CO")
-        self.assertEqual(kwargs["params"]["focus.point.lat"], "6.2442")
-        self.assertEqual(kwargs["params"]["focus.point.lon"], "-75.5812")
+        self.assertEqual(kwargs["params"]["components"], "country:CO")
+        # Google expects south,west|north,east.
+        self.assertEqual(kwargs["params"]["bounds"], "6.1,-75.7|6.4,-75.45")
+        self.assertEqual(kwargs["params"]["key"], "server-key")
 
-    @override_settings(ORS_API_KEY="test_ors_key")
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
     @patch("navigation.services.requests.get")
     def test_unresolvable_address_returns_none(self, mock_get):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"features": []}
-        mock_get.return_value = mock_response
+        mock_get.return_value = _Response({"status": "ZERO_RESULTS", "results": []})
+        with self.assertNoLogs("navigation.services", level="WARNING"):
+            self.assertIsNone(geocode_address("asdfghjkl"))
 
-        self.assertIsNone(geocode_address("asdfghjkl"))
-
-    @override_settings(ORS_API_KEY="test_ors_key")
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
     @patch("navigation.services.requests.get")
-    def test_api_error_returns_none_silently(self, mock_get):
-        mock_get.side_effect = Exception("API error or timeout")
-        self.assertIsNone(geocode_address("Parque Lleras, Medellín"))
+    def test_denied_request_logs_googles_explanation(self, mock_get):
+        mock_get.return_value = _Response(
+            {"status": "REQUEST_DENIED", "error_message": "API keys with referer restrictions cannot be used with this API."}
+        )
+        with self.assertLogs("navigation.services", level="WARNING") as logs:
+            self.assertIsNone(geocode_address("Parque Lleras"))
+        self.assertIn("referer restrictions", logs.output[0])
 
-    @override_settings(ORS_API_KEY="test_ors_key")
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
+    @patch("navigation.services.requests.get")
+    def test_network_error_returns_none(self, mock_get):
+        mock_get.side_effect = Exception("timeout")
+        with self.assertLogs("navigation.services", level="WARNING"):
+            self.assertIsNone(geocode_address("Parque Lleras, Medellín"))
+
+    @override_settings(GOOGLE_MAPS_SERVER_KEY="server-key")
     @patch("navigation.services.requests.get")
     def test_blank_address_does_not_call_the_api(self, mock_get):
         self.assertIsNone(geocode_address("   "))
         mock_get.assert_not_called()
+
+
+class DistanceInTheDatabaseTests(TestCase):
+    """The SQL distance must agree with the Python formula it replaces."""
+
+    ORIGIN = (Decimal("6.208500"), Decimal("-75.567000"))
+
+    def _event(self, title, latitude, longitude):
+        return Event.objects.create(
+            title=title, description="d", date_time=timezone.now(), location="x",
+            latitude=latitude, longitude=longitude,
+        )
+
+    def _annotated(self):
+        exact, rounded = distance_km_expression(*self.ORIGIN)
+        return {e.title: e for e in Event.objects.annotate(exact=exact, shown=rounded)}
+
+    def test_matches_haversine_km(self):
+        self._event("near", Decimal("6.244200"), Decimal("-75.581200"))
+        self._event("far", Decimal("4.711000"), Decimal("-74.072100"))  # Bogotá
+        events = self._annotated()
+        for title, (lat, lon) in {"near": (6.2442, -75.5812), "far": (4.711, -74.0721)}.items():
+            expected = haversine_km(*self.ORIGIN, lat, lon)
+            self.assertAlmostEqual(events[title].exact, expected, places=6)
+            self.assertAlmostEqual(events[title].shown, round(expected, 1), places=6)
+
+    def test_same_point_is_zero(self):
+        self._event("here", *self.ORIGIN)
+        self.assertAlmostEqual(self._annotated()["here"].exact, 0.0, places=6)
+
+    def test_events_without_coordinates_get_no_distance(self):
+        # On PostgreSQL a careless formula turns NULL into ~20,000 km here.
+        self._event("nowhere", None, None)
+        event = self._annotated()["nowhere"]
+        self.assertIsNone(event.exact)
+        self.assertIsNone(event.shown)
+
+    def test_bounding_box_never_excludes_a_point_inside_the_radius(self):
+        # Walk the edge of the circle: every point the exact formula accepts
+        # must also pass the cheap rectangle filter that runs first.
+        for origin in [self.ORIGIN, (Decimal("60.0"), Decimal("10.0")), (Decimal("-33.45"), Decimal("-70.66"))]:
+            for radius in (1, 5, 50):
+                south, north, west, east = bounding_box(*origin, radius)
+                lat0, lon0 = math.radians(float(origin[0])), math.radians(float(origin[1]))
+                angular = radius / 6371.0
+                for bearing in range(0, 360, 5):
+                    b = math.radians(bearing)
+                    lat = math.asin(
+                        math.sin(lat0) * math.cos(angular) + math.cos(lat0) * math.sin(angular) * math.cos(b)
+                    )
+                    lon = lon0 + math.atan2(
+                        math.sin(b) * math.sin(angular) * math.cos(lat0),
+                        math.cos(angular) - math.sin(lat0) * math.sin(lat),
+                    )
+                    point = (round(math.degrees(lat), 6), round(math.degrees(lon), 6))
+                    self.assertTrue(
+                        south <= Decimal(str(point[0])) <= north and west <= Decimal(str(point[1])) <= east,
+                        f"{point} is {radius} km from {origin} but outside the box",
+                    )
+
+    def test_bounding_box_is_tight(self):
+        south, north, west, east = bounding_box(*self.ORIGIN, 5)
+        self.assertLess(haversine_km(*self.ORIGIN, north, self.ORIGIN[1]), 5.02)
+        self.assertLess(haversine_km(*self.ORIGIN, self.ORIGIN[0], east), 5.02)
 
 
 class AccommodationEntryPointTests(TestCase):
@@ -322,9 +458,6 @@ class HaversineTests(TestCase):
         self.assertLess(near, far)
 
 
-from django.test import override_settings as _override_settings  # noqa: E402
-
-
 class EventMapViewTests(TestCase):
     def setUp(self):
         self.category = Category.objects.create(name="Music")
@@ -352,14 +485,14 @@ class EventMapViewTests(TestCase):
         response = self.client.get(reverse("navigation:event_map"))
         self.assertEqual(response.status_code, 200)
 
-    @_override_settings(GOOGLE_MAPS_API_KEY="")
+    @override_settings(GOOGLE_MAPS_API_KEY="")
     def test_shows_setup_message_without_api_key(self):
         response = self.client.get(reverse("navigation:event_map"))
         self.assertContains(response, 'id="map-unavailable"')
         self.assertContains(response, "The interactive map is not available right now.")
         self.assertNotContains(response, 'id="map"')
 
-    @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
+    @override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
     def test_renders_map_and_markers_with_api_key(self):
         response = self.client.get(reverse("navigation:event_map"))
         self.assertContains(response, 'id="map"')
@@ -387,7 +520,7 @@ class EventMapViewTests(TestCase):
         response = self.client.get(reverse("navigation:event_map"))
         self.assertEqual(response.context["events_without_coords"], 2)
 
-    @_override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
+    @override_settings(GOOGLE_MAPS_API_KEY="fake-js-key")
     def test_marker_data_is_script_safe(self):
         Event.objects.create(
             title="</script><script>alert(1)</script>",
@@ -551,3 +684,88 @@ class EventMapDistanceTests(TestCase):
         response = self.client.get(reverse("navigation:event_map"), {"radius_km": "5"})
         self.assertEqual(sorted(self._titles(response)), ["Cerca", "Lejos"])
         self.assertContains(response, "Log in")
+
+
+class GeocodedAtTests(TestCase):
+    """Google's coordinates may be kept 30 days: the form records when they arrived."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("ana", "ana@example.com", "S3gura!pass")
+
+    def _save(self, data, instance=None):
+        form = AccommodationForm(data, instance=instance)
+        self.assertTrue(form.is_valid(), form.errors)
+        accommodation = form.save(commit=False)
+        accommodation.user = self.user
+        accommodation.save()
+        return accommodation
+
+    @patch("navigation.forms.geocode_address")
+    def test_set_when_the_geocoder_answers(self, mock_geocode):
+        mock_geocode.return_value = (Decimal("6.208900"), Decimal("-75.568000"))
+        accommodation = self._save({"address": "Parque Lleras"})
+        self.assertIsNotNone(accommodation.geocoded_at)
+
+    @patch("navigation.forms.geocode_address")
+    def test_empty_for_coordinates_typed_by_hand(self, mock_geocode):
+        accommodation = self._save({"address": "Mi casa", "latitude": "6.2100", "longitude": "-75.5700"})
+        self.assertIsNone(accommodation.geocoded_at)
+        mock_geocode.assert_not_called()
+
+    @patch("navigation.forms.geocode_address")
+    def test_cleared_when_the_user_replaces_googles_coordinates(self, mock_geocode):
+        mock_geocode.return_value = (Decimal("6.208900"), Decimal("-75.568000"))
+        accommodation = self._save({"address": "Parque Lleras"})
+        accommodation = self._save(
+            {"address": "Parque Lleras", "latitude": "6.2100", "longitude": "-75.5700"}, instance=accommodation
+        )
+        self.assertIsNone(accommodation.geocoded_at)
+
+
+class RefreshGeocodesTests(TestCase):
+    def _accommodation(self, username, geocoded_days_ago):
+        user = User.objects.create_user(username, f"{username}@example.com", "S3gura!pass")
+        geocoded_at = None if geocoded_days_ago is None else timezone.now() - timedelta(days=geocoded_days_ago)
+        return Accommodation.objects.create(
+            user=user, address="Parque Lleras", latitude=Decimal("6.2"), longitude=Decimal("-75.5"),
+            geocoded_at=geocoded_at,
+        )
+
+    def _run(self):
+        out, err = StringIO(), StringIO()
+        call_command("refresh_geocodes", stdout=out, stderr=err)
+        return out.getvalue(), err.getvalue()
+
+    @patch("navigation.management.commands.refresh_geocodes.geocode_address")
+    def test_refreshes_only_googles_old_coordinates(self, mock_geocode):
+        mock_geocode.return_value = (Decimal("6.208900"), Decimal("-75.568000"))
+        old = self._accommodation("old", 29.5)
+        recent = self._accommodation("recent", 3)
+        manual = self._accommodation("manual", None)
+
+        out, _ = self._run()
+
+        self.assertIn("Refreshed 1 accommodation(s)", out)
+        mock_geocode.assert_called_once_with("Parque Lleras")
+        old.refresh_from_db()
+        self.assertEqual(old.latitude, Decimal("6.208900"))
+        self.assertLess(timezone.now() - old.geocoded_at, timedelta(minutes=1))
+        recent.refresh_from_db()
+        manual.refresh_from_db()
+        self.assertEqual(recent.latitude, Decimal("6.200000"))
+        self.assertEqual(manual.latitude, Decimal("6.200000"))
+        self.assertIsNone(manual.geocoded_at)
+
+    @patch("navigation.management.commands.refresh_geocodes.geocode_address")
+    def test_a_failed_lookup_keeps_the_row_for_the_next_run(self, mock_geocode):
+        mock_geocode.return_value = None
+        old = self._accommodation("old", 40)
+        before = old.geocoded_at
+
+        out, err = self._run()
+
+        self.assertIn("1 could not be refreshed", out)
+        self.assertIn("check_integrations", err)
+        old.refresh_from_db()
+        self.assertEqual(old.latitude, Decimal("6.200000"))
+        self.assertEqual(old.geocoded_at, before)
